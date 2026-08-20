@@ -1,0 +1,425 @@
+schema_version: "1.0"
+stage: fe-spec
+project:
+  name: rinriAI
+  technology: sky130
+  node_nm: 130
+  rtl_language: verilog-2001
+  dft: none
+
+requirements:
+  - id: REQ-001
+    title: "Two-layer MLP topology, parameterized"
+    category: functional
+    description: "The design shall implement a two-layer (single-hidden) MLP with FEATURES inputs, HIDDEN hidden neurons and CLASSES outputs, as Verilog parameters with defaults FEATURES=784, HIDDEN=32, CLASSES=10."
+    priority: must
+    measurable_target: "Parameters FEATURES, HIDDEN, CLASSES exist with defaults 784/32/10 and control all datapath widths and memory sizing"
+    source: user_brief
+    rationale: "Online-learning accelerator core: 784x32x10 matches MNIST-class datasets"
+    verification:
+      method: simulation
+      items: [VP-TOP-004, VP-TOP-015, VP-LRN-001]
+    status: agreed
+
+  - id: REQ-002
+    title: "Forward pass / inference"
+    category: functional
+    description: "The design shall compute the forward pass a_h = sigmoid(W_h·x + b_h), y_c = sigmoid(W_o·a_h + b_o) for a received sample and produce a predicted class = argmax(y), lowest index on ties."
+    priority: must
+    measurable_target: "Predicted class and PRED register match golden model bit-exactly for all stimulus vectors"
+    source: user_brief
+    rationale: "Inference is the forward path shared by training"
+    verification:
+      method: simulation
+      items: [VP-TOP-004, VP-TOP-005, VP-LRN-001, VP-LRN-004]
+    status: agreed
+
+  - id: REQ-003
+    title: "Online SGD training (backpropagation + weight update)"
+    category: functional
+    description: "The design shall, per received sample when training is enabled (freeze=0), compute the quadratic-cost backpropagation deltas (delta^L = (a^L - y_true) * sigma'(z^L); delta^l = (W^{l+1})^T * delta^{l+1} .* sigma'(z^l)) and apply online SGD updates w <- w - eta * a_prev * delta, b <- b - eta * delta, with eta = 2^-lr_shift."
+    priority: must
+    measurable_target: "Trained weight values and counters match the golden model bit-exactly after each sample"
+    source: user_brief
+    rationale: "The 'learning' in the accelerator; Nielsen ch.1-2 ground truth"
+    verification:
+      method: simulation
+      items: [VP-TOP-004, VP-LRN-002, VP-LRN-003]
+    status: agreed
+
+  - id: REQ-004
+    title: "16-bit signed fixed-point datapath, Q8.8"
+    category: functional
+    description: "All activations, weights, biases, gradients and deltas shall be 16-bit signed fixed-point in Q8.8 format (1 sign bit, 7 integer bits, 8 fractional bits; value = raw / 256). MAC accumulation shall use a 32-bit signed accumulator. Pixel bytes are converted to Q8.8 as value = pixel_byte (i.e., byte 0..255 maps to 0.0..0.99609375)."
+    priority: must
+    measurable_target: "No datapath signal wider than 32 bits except accumulators; Q8.8 documented in arch.md and identical in RTL and golden model"
+    source: derived
+    rationale: "16-bit fixed point is the proven training precision (FPGA-training literature); Q8.8 chosen so pixel bytes need only zero-extension"
+    verification:
+      method: simulation
+      items: [VP-TOP-004, VP-LRN-001]
+    status: agreed
+
+  - id: REQ-005
+    title: "Power-of-two learning rate"
+    category: functional
+    description: "The learning rate shall be programmable as eta = 2^-lr_shift with lr_shift in [0,15], controlled by LRN_RATE[3:0], reset value 8 (eta = 1/256). The update shall be implemented as an arithmetic shift, not a multiplier."
+    priority: must
+    measurable_target: "For lr_shift 0..15 the weight delta scales by exactly 2^-lr_shift vs lr_shift=0, matching golden model"
+    source: user_brief
+    rationale: "Shift-based update removes a multiplier from the training datapath"
+    verification:
+      method: simulation
+      items: [VP-TOP-011, VP-LRN-003]
+    status: agreed
+
+  - id: REQ-006
+    title: "Weight memory, CSR-addressable"
+    category: functional
+    description: "The design shall store all weights and biases in a single addressable memory of W_TOT = FEATURES*HIDDEN + HIDDEN + HIDDEN*CLASSES + CLASSES words of 16 bits (25,450 words at defaults), addressable word-by-word from the register interface via WADDR/WDATA with auto-increment, using the address map in spec.md section 6."
+    priority: must
+    measurable_target: "Every word readable/writable via CSR; read-back matches written pattern; address map per spec.md section 6"
+    source: user_brief
+    rationale: "Weight load/dump for firmware init and experiment inspection"
+    verification:
+      method: simulation
+      items: [VP-TOP-010, VP-WMEM-001, VP-WMEM-002]
+    status: agreed
+
+  - id: REQ-007
+    title: "Accuracy / error counters"
+    category: functional
+    description: "The design shall maintain SAMPLE_COUNT (samples fully processed), CORRECT_COUNT (argmax == label) and ERROR_COUNT (argmax != label) as 32-bit saturating counters, readable via CSR, cleared by CTRL.clr_stats."
+    priority: must
+    measurable_target: "Counters increment exactly once per accepted sample and match golden model; saturate at 0xFFFFFFFF"
+    source: user_brief
+    rationale: "Firmware and sim verify learning by reading accuracy counters"
+    verification:
+      method: simulation
+      items: [VP-TOP-004, VP-TOP-009, VP-STAT-001]
+    status: agreed
+
+  - id: REQ-008
+    title: "Streaming sample input (pixel bytes + label)"
+    category: interface
+    description: "The design shall accept samples on a byte-streaming interface: FEATURES pixel bytes followed by 1 label byte asserted with s_last. A byte is accepted when s_valid && s_ready at the clock edge. s_ready deasserts while the learner is busy. Samples are counted and processed only when fully received and valid (label < CLASSES)."
+    priority: must
+    measurable_target: "Zero dropped/duplicated bytes when the handshake is honored; one sample per FEATURES+1 beats; throughput >= 1 byte/cycle while ready"
+    source: user_brief
+    rationale: "Firmware streams MNIST-class dataset bytes as experiments"
+    verification:
+      method: simulation
+      items: [VP-TOP-004, VP-TOP-013, VP-SIN-001, VP-SIN-002]
+    status: agreed
+
+  - id: REQ-009
+    title: "APB4 slave register interface"
+    category: interface
+    description: "The design shall expose a 32-bit APB4 slave (PSEL/PENABLE/PWRITE/PADDR/PWDATA/PRDATA/PREADY/PSLVERR) with zero-wait-state single transfers, PREADY asserted in the ACCESS phase, PSLVERR asserted for reserved addresses."
+    priority: must
+    measurable_target: "1-cycle transfers; PSLVERR on any address outside 0x00..0x24; no side effects on failed transfers"
+    source: user_brief
+    rationale: "Firmware control plane; consistent with front-end module conventions"
+    verification:
+      method: simulation
+      items: [VP-TOP-002, VP-TOP-003, VP-APB-001, VP-APB-002]
+    status: agreed
+
+  - id: REQ-010
+    title: "Register map exactly as specified"
+    category: interface
+    description: "The design shall implement the register map of spec.md section 6 (CTRL 0x00, LRN_RATE 0x04, STATUS 0x08, SAMPLE_COUNT 0x0C, CORRECT_COUNT 0x10, ERROR_COUNT 0x14, PRED 0x18, WADDR 0x1C, WDATA 0x20, W_INIT_VAL 0x24) with the specified widths, access types and reset values. Writes to read-only registers and reserved bits are ignored."
+    priority: must
+    measurable_target: "Every register matches offset/width/access/reset value of spec.md section 6"
+    source: derived
+    rationale: "Deterministic firmware contract"
+    verification:
+      method: simulation
+      items: [VP-TOP-001, VP-TOP-002, VP-APB-001]
+    status: agreed
+
+  - id: REQ-011
+    title: "Bit-exact agreement with golden model"
+    category: functional
+    description: "The design shall reproduce the fe-arch golden reference model (golden_ref_model.c, integer-only arithmetic) bit-exactly: same stimulus -> same predictions, same counters, same trained weight values, using the exact fixed-point rules (rounding, saturation, MAC order) documented in arch.md."
+    priority: must
+    measurable_target: "RTL-vs-golden mismatch count = 0 over the full shipped vector set and the generated full-config set"
+    source: user_brief
+    rationale: "Acceptance bar for the whole pipeline"
+    verification:
+      method: simulation
+      items: [VP-TOP-004, VP-TOP-013, VP-LRN-002, VP-LRN-003]
+    status: agreed
+
+  - id: REQ-012
+    title: "Single clock domain, synchronous reset"
+    category: clocking
+    description: "The design shall be fully synchronous to the single clock clk_core, with a synchronous active-low reset rst_n (assert and de-assert on the clock edge). No asynchronous domain boundaries exist inside the IP."
+    priority: must
+    measurable_target: "All flops clocked by clk_core; reset active-low; no CDC paths (cdc_paths = 0)"
+    source: user_brief
+    rationale: "Design guidance: single clock domain, synchronous reset"
+    verification:
+      method: inspection
+      items: [VP-TOP-001, VP-TOP-016]
+    status: agreed
+
+  - id: REQ-013
+    title: "Reset values"
+    category: reset
+    description: "After reset: CTRL=0x00000000 (idle, not running), LRN_RATE=0x00000008 (lr_shift=8), STATUS=0x00000000, all counters 0, PRED=0, WADDR=0, WDATA=0, W_INIT_VAL=0, all weights and biases 0."
+    priority: must
+    measurable_target: "Post-reset register and memory readback exactly as listed"
+    source: derived
+    rationale: "Deterministic start state; firmware loads initial weights"
+    verification:
+      method: simulation
+      items: [VP-TOP-001, VP-STAT-001]
+    status: agreed
+
+  - id: REQ-014
+    title: "Synthesizable pure-Verilog style"
+    category: functional
+    description: "The design shall be pure Verilog-2001: no SystemVerilog constructs, no latches, no combinational loops, all sequential logic in always @(posedge clk_core) blocks, no '#' delays, no initial blocks in RTL."
+    priority: must
+    measurable_target: "Code review and lint pass: zero latches, zero blocking-in-sequential, zero '#' in rtl/"
+    source: derived
+    rationale: "Pipeline contract (fe-spec hard scope)"
+    verification:
+      method: inspection
+      items: [VP-TOP-016]
+    status: agreed
+
+  - id: REQ-015
+    title: "Timing closure at 50 MHz, Sky130 HD"
+    category: performance
+    description: "The design shall meet setup/hold timing at 50 MHz (20.000 ns) in Sky130 HD at 1.8 V typical corner with the spec timing budgets (input/output delay 30% of period; clock uncertainty 5% of period setup, 0.1 ns hold)."
+    priority: must
+    measurable_target: "fe-opensta STA reports zero setup/hold violations at 50 MHz with the specified budgets"
+    source: derived
+    rationale: "Comfortable Sky130 HD frequency without deep pipelining"
+    verification:
+      method: analysis
+      items: [VP-TOP-014]
+    status: agreed
+
+  - id: REQ-016
+    title: "Per-sample processing time budgets"
+    category: performance
+    description: "At default parameters (784x32x10): one training sample (forward + backprop + update) shall complete in <= 200,000 clock cycles; one inference sample in <= 30,000 cycles. Streaming input sustains >= 1 byte per clock cycle while ready."
+    priority: must
+    measurable_target: "Cycle counters in sim: train <= 200k cycles, infer <= 30k cycles at defaults"
+    source: derived
+    rationale: "Bounded latency for firmware-driven experiments"
+    verification:
+      method: simulation
+      items: [VP-TOP-012]
+    status: agreed
+
+  - id: REQ-017
+    title: "start / step / halt control semantics"
+    category: functional
+    description: "CTRL.start (self-clearing) enables continuous sample acceptance and processing; CTRL.step processes exactly one sample then returns to idle (STATUS.done=1); CTRL.halt stops acceptance after the current sample completes. In idle state s_ready is deasserted. STATUS.busy=1 while accepting/processing, done is cleared by start/step."
+    priority: must
+    measurable_target: "step -> exactly one sample counted; halt completes in-flight sample then idle; busy/done transitions per spec"
+    source: derived
+    rationale: "Single-step debug and controlled experiment runs"
+    verification:
+      method: simulation
+      items: [VP-TOP-006, VP-TOP-007]
+    status: agreed
+
+  - id: REQ-018
+    title: "Malformed sample handling"
+    category: functional
+    description: "If s_last is asserted before byte index FEATURES (short sample), or the label byte (index FEATURES) arrives without s_last, or label >= CLASSES: STATUS.err is set (sticky, cleared by CTRL.clr_stats), the partial sample is discarded (no processing, no counter increment), and framing resynchronizes at the next s_last."
+    priority: must
+    measurable_target: "Each malformed case sets err exactly once, leaves counters unchanged, and normal samples after resync process correctly"
+    source: derived
+    rationale: "Specified illegal-input behaviour per fe-spec best practice"
+    verification:
+      method: simulation
+      items: [VP-TOP-008, VP-SIN-001]
+    status: agreed
+
+  - id: REQ-019
+    title: "Counter saturation"
+    category: functional
+    description: "SAMPLE_COUNT, CORRECT_COUNT, ERROR_COUNT shall saturate at 0xFFFFFFFF and shall not wrap. CTRL.clr_stats clears all three and STATUS.err."
+    priority: must
+    measurable_target: "Counters clamp at 0xFFFFFFFF under continued increments; clr_stats zeroes them"
+    source: derived
+    rationale: "Deterministic counter behaviour for firmware reporting"
+    verification:
+      method: simulation
+      items: [VP-TOP-009, VP-STAT-001]
+    status: agreed
+
+  - id: REQ-020
+    title: "Weight load/dump and bulk init"
+    category: functional
+    description: "Firmware shall be able to write any weight/bias word via WADDR + WDATA (write) and read any word via WADDR + WDATA (read); WADDR auto-increments after each WDATA access. CTRL.init_weights (self-clearing) writes W_INIT_VAL to all W_TOT words."
+    priority: must
+    measurable_target: "Full dump/load round-trip preserves all words; init_weights sets all words to W_INIT_VAL; forward results reflect loaded weights"
+    source: user_brief
+    rationale: "Weight init (e.g., deterministic pseudo-random) and post-training inspection"
+    verification:
+      method: simulation
+      items: [VP-TOP-010, VP-WMEM-001, VP-WMEM-002]
+    status: agreed
+
+  - id: REQ-021
+    title: "Biases trained and addressable"
+    category: functional
+    description: "Hidden and output biases shall be stored, trained (updated in backprop), and CSR-addressable as part of the weight memory at addresses FEATURES*HIDDEN .. FEATURES*HIDDEN+HIDDEN-1 (hidden) and FEATURES*HIDDEN+HIDDEN+HIDDEN*CLASSES .. +CLASSES-1 (output)."
+    priority: must
+    measurable_target: "Bias words readable/writable and updated by training exactly as golden model"
+    source: derived
+    rationale: "Nielsen ch.1-2 includes biases in the update"
+    verification:
+      method: simulation
+      items: [VP-TOP-010, VP-LRN-002]
+    status: agreed
+
+  - id: REQ-022
+    title: "Parameterization constraints"
+    category: functional
+    description: "The design shall support FEATURES in [1,4096], HIDDEN in [1,512], CLASSES in [1,256], with FEATURES*HIDDEN + HIDDEN + HIDDEN*CLASSES + CLASSES <= 65535 words, and CLASSES <= 256 so the label byte is sufficient."
+    priority: must
+    measurable_target: "Two non-default configurations (4/4/2 and 8/4/3) elaborate and match golden model"
+    source: derived
+    rationale: "Small-config vectors for regression; headroom for dataset variants"
+    verification:
+      method: simulation
+      items: [VP-TOP-015]
+    status: agreed
+
+  - id: REQ-023
+    title: "Dynamic power target"
+    category: power
+    description: "The design shall consume <= 5 mW dynamic power at 50 MHz, 1.8 V, typical corner, excluding the weight memory macro."
+    priority: should
+    measurable_target: "Post-synthesis power estimate <= 5 mW (excluding SRAM) in the downstream flow"
+    source: derived
+    rationale: "TinyML-class power envelope"
+    verification:
+      method: analysis
+      items: [VP-TOP-017]
+    status: agreed
+
+  - id: REQ-024
+    title: "Area target"
+    category: area
+    description: "The design shall occupy <= 100 kGE of standard-cell area excluding the weight memory (which is 25,450 x 16 bit at defaults and may be implemented as an SRAM macro or inferred RAM)."
+    priority: should
+    measurable_target: "Post-synthesis area report <= 100 kGE excluding memory"
+    source: derived
+    rationale: "Small IP block; memory dominates and is budgeted separately"
+    verification:
+      method: analysis
+      items: [VP-TOP-018]
+    status: agreed
+
+  - id: REQ-025
+    title: "Firmware experiment demonstrates learning"
+    category: functional
+    description: "The documented firmware experiment (load deterministic pseudo-random init weights, lr_shift=8, stream MNIST-class training samples, poll counters) shall demonstrate learning: reported training accuracy shall rise over epochs; reaching >= 80% on the streamed subset within 5 epochs is the stretch target. This is a may-priority goal, not a chip gate."
+    priority: may
+    measurable_target: "Firmware experiment log shows monotonically improving accuracy and reports final accuracy per the documented procedure"
+    source: user_brief
+    rationale: "The 'fed by online datasets' story: verify learning via firmware + counters"
+    verification:
+      method: simulation
+      items: [VP-TOP-019]
+    status: agreed
+
+assumptions:
+  - id: ASM-001
+    statement: "Core clock is 50 MHz (20.000 ns), single external clock input."
+    basis: default_table
+    impact: "Sets all SDC periods, throughput budgets and timing budgets."
+    requires_confirmation: true
+  - id: ASM-002
+    statement: "Reset is active-low and synchronous (per design guidance 'synchronous reset'), min assert 16 cycles, polarity active-low per default."
+    basis: user_brief
+    impact: "Reset architecture and SDC reset constraints."
+    requires_confirmation: true
+  - id: ASM-003
+    statement: "Deployment context is a standalone RTL IP macro integrated into a firmware-driven SoC or testbench harness (Caravel-style); 1.8 V core domain, I/O pads and level shifters are external to this IP."
+    basis: default_table
+    impact: "No pad/level-shifter cells inside the IP; interfaces are core-level."
+    requires_confirmation: true
+  - id: ASM-004
+    statement: "Fixed-point format is Q8.8 (16-bit signed, 8 fractional bits) for activations, weights, biases, gradients; 32-bit signed accumulators."
+    basis: derived
+    impact: "The bit-exact contract between RTL and golden model; all downstream verification."
+    requires_confirmation: true
+  - id: ASM-005
+    statement: "Activation is sigmoid (implemented as an exact LUT defined by fe-arch) with quadratic cost; softmax/cross-entropy is NOT implemented (kept out for RTL simplicity, per design guidance 'your call')."
+    basis: user_brief
+    impact: "Golden model math and LUT size."
+    requires_confirmation: true
+  - id: ASM-006
+    statement: "No interrupt output; firmware polls STATUS. (Simple-per-mission choice.)"
+    basis: derived
+    impact: "No irq port; verification uses polling."
+    requires_confirmation: true
+  - id: ASM-007
+    statement: "Statistics counters saturate at 2^32-1 rather than wrapping."
+    basis: derived
+    impact: "Counter RTL and golden model share saturation semantics."
+    requires_confirmation: true
+  - id: ASM-008
+    statement: "All weights and biases reset to 0; firmware must load initial weights (e.g., deterministic pseudo-random) before training experiments."
+    basis: derived
+    impact: "Zero-init network cannot learn until firmware loads weights; documented in firmware flow."
+    requires_confirmation: true
+  - id: ASM-009
+    statement: "SDC placeholder budgets: clock uncertainty 5% of period setup / 0.1 ns hold; input and output delay 30% of period each (fe-opensta consumes these)."
+    basis: default_table
+    impact: "sdc_spec.json timing budgets."
+    requires_confirmation: true
+
+ip_reuse:
+  - id: IPR-001
+    block: apb4_slave_regs
+    decision: custom
+    repo: null
+    commit: null
+    license: null
+    status: rejected
+    search_command: 'web_search "github sky130 verilog APB4 slave RTL"'
+    notes: "Survey found vyges/uart-controller (SystemVerilog, APB3) and ForrestBlue/cortexm0ds CMSDK APB4 example (ARM-licensed code, Verilog-2001). Both rejected: Rinri directive 2026-08-20 = author everything fresh; no external IP in this repo. A trivial APB4 register block is authored by fe-rtl."
+  - id: IPR-002
+    block: sigmoid_lut
+    decision: custom
+    repo: null
+    commit: null
+    license: null
+    status: rejected
+    search_command: 'web_search "github verilog sigmoid LUT fixed point neural network accelerator"'
+    notes: "Survey found neoaashish/Verilog_ASIC and Csuk0914/dnn-rtl (sigmoid LUTs) and SystemVerilog NN repos. All rejected per Rinri directive; LUT values are generated by the fe-arch golden model definition and authored fresh in fe-rtl."
+  - id: IPR-003
+    block: weight_ram
+    decision: custom
+    repo: null
+    commit: null
+    license: null
+    status: rejected
+    search_command: 'web_search "github sky130 verilog dual port RAM"'
+    notes: "Weight memory is a parameterized dual-port RAM authored in fe-rtl as an inferred reg array (synthesis-ready; fe-yosys may map to an SRAM macro at the SoC boundary). OpenRAM-generated sky130_sram_* macros exist in the PDK ecosystem but are NOT used inside this IP; see OI-001."
+    search_command_2: 'web_search "github sky130 verilog APB4 slave RTL" (no RAM-specific result adopted)'
+
+open_issues:
+  - id: OI-001
+    description: "Weight RAM implementation target: inferred dual-port reg array vs Sky130 SRAM macro blackbox. Default decision is inferred reg array with a documented macro-replacement boundary; confirm against the installed PDK when integrating."
+    blocks: []
+    owner: architect
+  - id: OI-002
+    description: "If the weight RAM is ever replaced by a sky130_sram_* macro, the exact cell name must be verified against the installed PDK before any stub or constraint is written."
+    blocks: []
+    owner: user
+  - id: OI-003
+    description: "Full-MNIST accuracy validation (REQ-025 stretch target) requires the downstream firmware/experiment harness (fe-cocotb/regression + firmware on the APB interface); the RTL gate itself only requires golden-model bit-exactness."
+    blocks: []
+    owner: user

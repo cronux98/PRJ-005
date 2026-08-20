@@ -1,0 +1,52 @@
+schema_version: "1.0"
+stage: fe-arch
+generated_for: fe-rtl
+project_name: rinriAI
+source_spec: {manifest: spec/spec_manifest.yaml, verified: true}
+technology: {pdk: sky130, node_nm: 130, stdcell_lib: sky130_fd_sc_hd, core_voltage_v: 1.8}
+constraints: {rtl_language: verilog-2001, dft: none, custom_analog: false}
+artifacts:
+  - {file: arch.md, present: true}
+  - {file: block_diagram.mmd, present: true}
+  - {file: fsm_diagrams.mmd, present: true}
+  - {file: interface_defs.yaml, present: true}
+  - {file: cdc_plan.md, present: true}
+  - {file: power_plan.md, present: true}
+  - {file: rtl_coding_guidelines.md, present: true}
+  - {file: golden_model/golden_ref_model.c, present: true}
+  - {file: golden_model/golden_model_test_vectors.h, present: true}
+  - {file: golden_model/expected_outputs.txt, present: true}
+  - {file: golden_model/stimulus.hex, present: true}
+  - {file: golden_model/expected.hex, present: true}
+module_list:                       # fe-rtl must produce exactly these
+  - {block: BLK-001, module: learn_accel,  source: custom, clock: clk_core, reset: rst_n}
+  - {block: BLK-002, module: apb_regs,     source: custom, clock: clk_core, reset: rst_n}
+  - {block: BLK-003, module: sample_stream, source: custom, clock: clk_core, reset: rst_n}
+  - {block: BLK-004, module: learner,      source: custom, clock: clk_core, reset: rst_n}
+  - {block: BLK-005, module: weight_ram,   source: custom, clock: clk_core, reset: rst_n}
+  - {block: BLK-006, module: stats,        source: custom, clock: clk_core, reset: rst_n}
+  - {block: BLK-007, module: div_seq,      source: custom, clock: clk_core, reset: rst_n}
+clock_domains:  [{id: CLK-001, name: clk_core, domain: CD_CORE, period_ns: 20.000, async_with: []}]
+cdc_paths:      []                 # zero CDC paths (single domain)
+golden_model:
+  granularity: transaction
+  vector_count: 5                  # 5 samples, tiny config 4/4/2, lr_shift=0
+  output_format: "SAMPLE %03u label=0x%02X pred=0x%02X correct=0x%01X sample=0x%08X correct_cnt=0x%08X error_cnt=0x%08X  + WEIGHT 0x%04X=0x%04X lines"
+  stimulus_hex: golden_model/stimulus.hex
+  expected_hex: golden_model/expected.hex
+  build_command: "gcc -std=c99 -O2 -Wall -Wextra -o gm golden_ref_model.c"
+  executed_by_skill: false
+counts: {blocks: 7, fsms: 4, internal_interfaces: 9, memories: 5, cdc_paths: 0, ip_reused: 0, blackboxes: 0}
+review_gate:
+  all_must_requirements_mapped: true
+  every_block_has_clock_and_reset: true
+  every_fsm_has_full_transition_table: true
+  every_cdc_has_mechanism_and_module: true   # vacuous: zero CDC paths, stated in cdc_plan.md
+  no_dft_structures: true
+  no_systemverilog_in_examples: true
+  golden_model_deterministic: true
+open_issues:
+  - {id: OI-001, description: "Weight RAM: inferred reg array in RTL; SRAM macro replacement at integration adds 1-cycle CSR read latency (WDATA read -> 1 wait state, spec deviation, needs erratum)", owner: architect}
+  - {id: OI-002, description: "Verify sky130_sram_* cell names against installed PDK before any macro stub/constraint", owner: user}
+  - {id: OI-003, description: "REQ-025 stretch target needs downstream firmware/experiment harness", owner: user}
+  - {id: OI-004, description: "REQ-025 recipe lr_shift=8 yields sub-LSB Q8.8 updates; usable range lr_shift 0-3 (golden vectors use 0); spec erratum suggested (reword to lr_shift=2)", owner: user}

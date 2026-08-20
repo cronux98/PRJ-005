@@ -1,0 +1,83 @@
+schema_version: "1.0"
+stage: fe-spec
+
+clocks:
+  - id: CLK-001
+    name: clk_core
+    domain: CD_CORE
+    frequency_mhz: 50.0
+    period_ns: 20.000
+    source: external_pad
+    duty_cycle_pct: 50
+    jitter_ns: 0.100
+
+resets:
+  - id: RST-001
+    name: rst_n
+    polarity: active_low
+    type: sync                      # synchronous per design guidance (ASM-002)
+    domain: CD_CORE
+    source: external_pad
+    min_assert_cycles: 16
+    sequencing: "Single domain; no cross-domain sequencing required."
+
+interfaces:
+  - id: IF-001
+    name: apb_slave
+    protocol: APB4
+    role: slave
+    clock: clk_core
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      input_delay_ns: 6.000        # 30 % of 20 ns period
+      output_delay_ns: 6.000
+    signals:
+      - {name: psel,    dir: input,  width: 1,  active: high, description: "Select"}
+      - {name: penable, dir: input,  width: 1,  active: high, description: "Enable phase"}
+      - {name: pwrite,  dir: input,  width: 1,  active: high, description: "1 = write, 0 = read"}
+      - {name: paddr,   dir: input,  width: 32, active: high, description: "Byte address"}
+      - {name: pwdata,  dir: input,  width: 32, active: high, description: "Write data"}
+      - {name: prdata,  dir: output, width: 32, active: high, description: "Read data"}
+      - {name: pready,  dir: output, width: 1,  active: high, description: "Transfer complete (1 in ACCESS phase, zero-wait)"}
+      - {name: pslverr, dir: output, width: 1,  active: high, description: "Error response (reserved address)"}
+    protocol_notes: >
+      APB4 single transfers, zero wait states. Setup phase (PSEL=1, PENABLE=0),
+      ACCESS phase (PSEL=1, PENABLE=1), PREADY=1 in ACCESS phase. PSLVERR=1 in
+      ACCESS phase for any address outside the 0x00..0x24 register window.
+      Writes to read-only registers and reserved bits are ignored. Byte strobes
+      (PSTRB) and PPROT are not required by this slave (full-word accesses only).
+
+  - id: IF-002
+    name: sample_stream
+    protocol: custom_byte_stream     # simple valid/ready byte stream with last marker
+    role: slave
+    clock: clk_core
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      input_delay_ns: 6.000
+      output_delay_ns: 6.000
+    signals:
+      - {name: s_valid, dir: input,  width: 1,  active: high, description: "Byte valid"}
+      - {name: s_ready, dir: output, width: 1,  active: high, description: "Byte accepted (deasserted while learner busy)"}
+      - {name: s_data,  dir: input,  width: 8,  active: high, description: "Sample byte: pixel 0..FEATURES-1, then label byte"}
+      - {name: s_last,  dir: input,  width: 1,  active: high, description: "Marks the label byte (byte index FEATURES)"}
+    protocol_notes: >
+      Sample framing: exactly FEATURES pixel bytes followed by 1 label byte.
+      The label byte is the byte with s_last=1 at byte index FEATURES (0-based).
+      A byte is transferred when s_valid && s_ready at the rising clock edge.
+      s_ready is deasserted while the learner is busy processing (backpressure).
+      s_last asserted before byte index FEATURES, a missing s_last at the label
+      byte, or label >= CLASSES is a malformed sample: STATUS.err is set and the
+      partial sample is discarded (REQ-018). After s_last the frame boundary
+      resets; the next byte starts the next sample. Label byte value = true class
+      in [0, CLASSES-1].
+
+cdc_requirements: []               # single clock domain; all inputs synchronous to clk_core; no CDC paths
+
+analog_macros: []                  # no analog macros required; pads/level shifters are external (ASM-003)
+
+notes:
+  - "Endianness: little-endian, byte-addressable APB; register data occupies bits [31:0] as documented in spec.md section 6."
+  - "Top module name (fe-rtl): learn_accel. Ports are the union of IF-001, IF-002, CLK-001, RST-001."

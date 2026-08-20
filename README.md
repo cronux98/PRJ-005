@@ -1,4 +1,4 @@
-# learning-accelerator-ip
+# rinriAI (PRJ-005)
 
 **Simple, learning AI accelerator** — an IP block that *learns* (not just infers), testable with simulation **and** firmware, fed by online datasets as experiments.
 
@@ -23,4 +23,4 @@ A small, understandable learning-accelerator IP that:
 
 ## Status
 
-- 2026-08-20: repo + research compiled. Spec/arch/rtl authoring dispatched to architect agent (deepseek-v4-flash).
+- 2026-08-20: repo created as `learning-accelerator-ip`, renamed to **PRJ-005** (project name **rinriAI**). Research compiled and pushed; architect agent (deepseek-v4-flash) authored **spec/** + **arch/** complete, **rtl/** partial (5 of N blocks: apb_regs, div_seq, sample_stream, stats, weight_ram — top-level integration pending). Authoring PAUSED by Rinri 01:10Z; resume by re-dispatching architect. All artifacts pushed.
