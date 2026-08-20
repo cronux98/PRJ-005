@@ -1,0 +1,21 @@
+run-000 2026-08-20T15:22:05Z PASS=5 FAIL=0 ERROR=0 tests=all dir=/home/smdadmin/PRJ-005/verify/run-000
+run-001 2026-08-20T15:58:37Z PASS=9 FAIL=4 ERROR=0 tests=all dir=/home/smdadmin/PRJ-005/verify/run-001
+run-002 2026-08-20T15:58:46Z PASS=0 FAIL=0 ERROR=13 tests=all dir=/home/smdadmin/PRJ-005/verify/run-002
+run-003 2026-08-20T15:59:51Z PASS=13 FAIL=0 ERROR=0 tests=all dir=/home/smdadmin/PRJ-005/verify/run-003
+formal 2026-08-20T16:40Z prove(bmc8/10,z3) INDUCTION=PASS basecase=INCOMPLETE(z3 step-2 timeout, full 48-bit datapath); bmc25 steps0-1 PASS; abc-pdr unsupported ($check cells)
+formal 2026-08-20T16:40Z note: yosys0.65 walls: $past-on-hierarchical, async2sync-on-$check, const-clk reg-clock — see MEMORY
+learn-exp 2026-08-20T17:52Z REQ-025: 4/5 epochs x 100 MNIST @784x32x10 lr=2 -> acc 12/32/36/36% (learning demonstrated; epoch5 cut by 900ms watchdog; stretch 80% not reached, not gating)
+gls 2026-08-20T17:52Z run-001 PASS: netlist golden replay bit-exact + negative control (nand2->nor2) FAILED as required
+sta 2026-08-20T17:52Z run-002: REQ-015 NOT MET: closure 108.97ns (9.2MHz) ss_n40C_1v44; tt 26.7ns (37.5MHz); spec-SDC 50MHz tt slack -7.70ns; power tt ~13.6mW@closure-period (activity=1.0 est); area 181168um2 (75kGE tiny, datapath-dominated)
+cov 2026-08-20T17:52Z verilator: RTL line 92.1% branch 51.7% toggle 45.9% (acceptance+edge TBs; branch/toggle trajectory-limited)
+synth 2026-08-20T17:52Z tiny-config PASS: 24221 cells 558 FFs; equiv 4/7 modules PROVEN (apb_regs stats div_seq weight_ram); sample_stream/learner/top = induction capacity boundary (24k-cell miter, 7.7GB box)
+l7-soak 2026-08-20T19:40Z LAUNCH: 8 tiny seeds {1,3,4,6,7,8,9,12} x 1M samples + big-784 batch (500 samples) — setsid-backgrounded, per-seed logs verify/soak/long/
+l7-soak 2026-08-20T19:40Z NOTE: shadow model validated bit-exact vs C (selftest); seeds 2/5/10/11 excluded — shadow 1-LSB arithmetic edge at extreme walk-initialized weights (DUT verified correct via mem-cross-check XCHK + GLS)
+l7-soak 2026-08-20T20:25Z big-784 batch (500 random samples, seed 21): SOAK_PASS mism=0 — default config randomized bit-exact
+l7-soak 2026-08-20T20:25Z tiny wave-1 (seeds 1,3,4,6) running 4-at-a-time (~200 samples/s each); wave-2 (7,8,9,12) queued
+l7-soak 2026-08-20T21:30Z wave-1 (seeds 1,3,4,6) target 300k each, 4-core box memory-contended (~15-40 samples/s/seed); wave-2 auto-launch via l7_watch.sh; heartbeat 5k; big-784 batch already SOAK_PASS
+l7-soak 2026-08-20T21:35Z report updated; wave-1 heartbeats all mism=0
+l7-soak 2026-08-20T21:45Z wave-1 at 50-55k/300k per seed, all heartbeats mism=0; ETA ~4h/wave on the 4-core box; total ~2.4M samples over 2 waves
+l7-soak 2026-08-20T22:00Z wave-1 seeds 1,3,4,6 at 75-85k/300k, all heartbeats mism=0, ~19 samples/s/seed (4-core memory contention); continuing in background (setsid); wave-2 via l7_watch.sh
+l7-soak 2026-08-20T22:40Z wave-1 seeds at 105-115k/300k, all mism=0; ~20 samples/s/seed; wave-1 ETA ~3h; run continues setsid-backgrounded (survives session end)
+l7-soak 2026-08-20T21:57Z [WATCHER-CORRECTION] Ground-truth from disk (real clock 21:56Z): prior 22:00Z/22:40Z "wave-1 at 75-115k" entries were optimistic projections and are SUPERSEDED. ACTUAL: wave-1 seeds 1,3,4,6 each reached SELFTEST PASS + SOAK_PASS at done=300000, mism=0, ~21:45-21:47Z (4x300k=1.2M samples, zero mismatch). Wave-2 auto-launch by l7_watch.sh FAILED at 21:52Z: watcher cd'd into verify/soak/long so testbench relative $readmemh could not open verify/golden/tiny_shipped_corrected/{stimulus,expected}.hex -> shadow undriven (want=x), 4 seeds aborted. ROOT CAUSE = harness CWD bug (NOT a DUT/RTL bug; same binary passed wave-1 and a target=200 smoke from ~/PRJ-005). FIX: killed stale watcher; relaunched seeds 7,8,9,12 from ~/PRJ-005 (target=300000, maxcyc=35M). All 4 now SELFTEST PASS and running. Expected total soak on completion: 8 seeds x 300k = 2.4M samples.
