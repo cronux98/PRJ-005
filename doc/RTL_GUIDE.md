@@ -134,11 +134,28 @@ reference for this project.
 The hardware processes each sample as a sequence of six phases (which become the six
 non-idle FSM states in `learner.v`):
 
-```
- FWD_H ──► FWD_O ──► BP_O ──► BP_H ──► UPD_O ──► UPD_H ──► DONE
-forward    forward   output  hidden   update   update
-hidden     output    deltas  deltas   output   hidden
-layer      layer                         weights  weights
+```mermaid
+flowchart TD
+    IDLE["IDLE — reset; waits for start/step and a full sample"]
+    FWDH["FWD_H — hidden forward<br/>per hidden h: bias + F MACs + sigmoid → a_h"]
+    FWDO["FWD_O — output forward<br/>per class c: bias + H MACs + sigmoid → y_c, argmax"]
+    FZ{"freeze?"}
+    BPO["BP_O — output deltas<br/>δ_o[c] = sat16(trunc((y−t)·y·(256−y), 16))"]
+    BPH["BP_H — hidden deltas<br/>δ_h[h] = sat16(trunc(e16·a·(256−a), 24))"]
+    UPDO["UPD_O — update output layer<br/>W_o −= η·δ_o·a_h ; b_o −= η·δ_o"]
+    UPDH["UPD_H — update hidden layer<br/>W_h −= η·δ_h·x ; b_h −= η·δ_h"]
+    DONE["DONE — counters + PRED, back to IDLE"]
+
+    IDLE -->|"start/step && sample_valid"| FWDH
+    FWDH --> FWDO
+    FWDO --> FZ
+    FZ -->|"yes — inference-only"| DONE
+    FZ -->|"no — training"| BPO
+    BPO --> BPH
+    BPH --> UPDO
+    UPDO --> UPDH
+    UPDH --> DONE
+    DONE -->|"continuous mode"| IDLE
 ```
 
 - **Forward** (always): compute hidden activations, then outputs, pick argmax.
@@ -310,7 +327,45 @@ bit-exactness contract.
                     └────────────────────────────────────────────┘
 ```
 
-### 4.3 Two interfaces: control plane vs data plane
+### 4.3 How the IP works — end-to-end flowchart
+
+The block diagram above shows *structure*; this flowchart shows **data and control
+flow** through the IP. (Mermaid renders on GitHub; for plain-text viewers the ASCII
+block diagram in §4.2 serves the same map.)
+
+```mermaid
+flowchart LR
+    subgraph EXT["Outside the IP"]
+        APB_M["APB4 master (firmware)<br/>CTRL / LRN_RATE / WADDR / WDATA / W_INIT_VAL"]
+        FEED["Sample feeder<br/>s_valid · s_data · s_last"]
+    end
+
+    subgraph IP["learn_accel (inside the IP)"]
+        REGS["apb_regs<br/>decode, strobes, CSR bridge"]
+        FRM["sample_stream<br/>framing + MEM-002 sample RAM"]
+        LRN["learner<br/>FSM-001 + MAC datapath"]
+        WRAM[("weight_ram<br/>MEM-001: W_TOT × 16-bit")]
+        DIV["div_seq<br/>33-cycle restoring divider"]
+        ST["stats<br/>counters, sticky err, PRED"]
+    end
+
+    APB_M -->|"psel penable pwrite paddr pwdata"| REGS
+    REGS -->|"prdata pready pslverr"| APB_M
+    REGS -->|"start_p step_p halt_p freeze lr_shift"| LRN
+    REGS -->|"init_go init_val"| WRAM
+    REGS <-->|"b_addr b_wdata b_we b_rdata"| WRAM
+    FEED -->|"s_valid s_data s_last"| FRM
+    FRM -->|"sample_valid label"| LRN
+    LRN -->|"accept_en = s_ready"| FRM
+    FRM -->|"err_p"| ST
+    LRN <-->|"a_addr a_wdata a_we a_rdata"| WRAM
+    LRN -->|"div_start div_num div_den"| DIV
+    DIV -->|"div_done div_q"| LRN
+    LRN -->|"sample_done_p correct_p error_p pred"| ST
+    ST -->|"counts err pred"| REGS
+```
+
+### 4.4 Two interfaces: control plane vs data plane
 
 - **IF-001, APB4 slave**: a standard on-chip peripheral bus. Firmware writes registers
   (start, step, halt, freeze, learning rate, weight load/dump) and reads status/counters.
@@ -323,7 +378,7 @@ Separating the two keeps the control path trivial (combinational register decode
 lets the data path be a pure streaming machine. This "two-plane" pattern is the standard
 way to build accelerator IP.
 
-### 4.4 Register map (firmware's view)
+### 4.5 Register map (firmware's view)
 
 | Offset | Name | Access | Purpose |
 |---|---|---|---|
@@ -341,7 +396,7 @@ way to build accelerator IP.
 Strobes (start/step/halt/clr_stats/init_weights) are **1-cycle pulses that read back 0** —
 firmware writes `1` and the hardware "eats" it. This is why CTRL reads mostly 0.
 
-### 4.5 Weight memory layout
+### 4.6 Weight memory layout
 
 All weights and biases live in one flat array of `W_TOT = F·H + H + H·C + C` 16-bit words
 (25,450 at defaults):
@@ -649,6 +704,8 @@ generous — the upper bits of `q_mag_r` are always zero, and `div_q` is `q_mag_
 ---
 
 ## 6. The life of one sample (timeline walkthrough)
+
+(The phase pipeline is the flowchart in §2.5; the full end-to-end data/control flow is §4.3.)
 
 Assume firmware has already loaded initial weights (or done `init_weights`), set
 `LRN_RATE`, and written `CTRL.start`:
