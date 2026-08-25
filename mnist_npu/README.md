@@ -1,6 +1,10 @@
 # mnist_npu — MNIST Inference-Only NPU (PRJ-005)
 
-**Status: PLANNED** — golden model first (C simulation), then RTL. No FPGA/Vivado yet.
+**Status: GOLDEN MODEL DONE (2026-08-25)** — 92.25% integer accuracy on 10k
+MNIST test images (9225 correct / 270 wrong / 505 trash), bit-exact contract
+cross-validated (C golden vs independent numpy integer emulation, 100/100).
+Next: fe-spec → fe-arch → fe-rtl, then iverilog/cocotb sim (UART bytes + LED
+patterns vs expected.hex). FPGA deferred until simulation is fully green.
 
 Tiny inference-only MNIST accelerator:
 - MLP 784-32-10, Q8.8 fixed point, LUT sigmoid (no restoring divider)

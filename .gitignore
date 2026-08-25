@@ -4,3 +4,6 @@ run-*/
 *.vcd
 .venv/
 __pycache__/
+
+# mnist_npu: raw dataset downloads (regenerable via tools/fetch_mnist.sh)
+data/
