@@ -1,0 +1,12 @@
+/home/smdadmin/PRJ-005/mnist_npu/rtl/weight_rom.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/image_rom.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/label_rom.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/hidden_ram.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/sigmoid_lut.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/mac_datapath.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/uart_tx.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/uart_line_fmt.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/led_ctrl.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/ctrl_fsm.v
+/home/smdadmin/PRJ-005/mnist_npu/rtl/mnist_npu.v
+/home/smdadmin/PRJ-005/mnist_npu/verify/tests/mnist_npu_cocotb_wrapper.v

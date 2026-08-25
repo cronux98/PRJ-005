@@ -1,0 +1,11 @@
+../mnist_npu/rtl/weight_rom.v
+../mnist_npu/rtl/image_rom.v
+../mnist_npu/rtl/label_rom.v
+../mnist_npu/rtl/hidden_ram.v
+../mnist_npu/rtl/sigmoid_lut.v
+../mnist_npu/rtl/mac_datapath.v
+../mnist_npu/rtl/uart_tx.v
+../mnist_npu/rtl/uart_line_fmt.v
+../mnist_npu/rtl/led_ctrl.v
+../mnist_npu/rtl/ctrl_fsm.v
+../mnist_npu/rtl/mnist_npu.v
