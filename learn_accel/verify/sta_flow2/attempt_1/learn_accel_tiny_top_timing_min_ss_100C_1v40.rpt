@@ -1,0 +1,31 @@
+Startpoint: u_dut/u_apb_regs/_589_
+            (rising edge-triggered flip-flop clocked by clk)
+Endpoint: u_dut/u_apb_regs/_589_
+          (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: min
+
+    Delay      Time   Description
+-------------------------------------------------------------
+   0.0000    0.0000   clock clk (rise edge)
+   0.0000    0.0000   clock network delay (ideal)
+   0.0000    0.0000 ^ u_dut/u_apb_regs/_589_/CLK (sky130_fd_sc_hd__dfxtp_1)
+   0.8050    0.8050 v u_dut/u_apb_regs/_589_/Q (sky130_fd_sc_hd__dfxtp_1)
+   0.0972    0.9021 ^ u_dut/u_apb_regs/_264_/Y (sky130_fd_sc_hd__clkinv_1)
+   0.1239    1.0261 v u_dut/u_apb_regs/_433_/Y (sky130_fd_sc_hd__a21oi_1)
+   0.0000    1.0261 v u_dut/u_apb_regs/_589_/D (sky130_fd_sc_hd__dfxtp_1)
+             1.0261   data arrival time
+
+   0.0000    0.0000   clock clk (rise edge)
+   0.0000    0.0000   clock network delay (ideal)
+   0.0000    0.0000   clock reconvergence pessimism
+             0.0000 ^ u_dut/u_apb_regs/_589_/CLK (sky130_fd_sc_hd__dfxtp_1)
+  -0.1525   -0.1525   library hold time
+            -0.1525   data required time
+-------------------------------------------------------------
+            -0.1525   data required time
+            -1.0261   data arrival time
+-------------------------------------------------------------
+             1.1786   slack (MET)
+
+

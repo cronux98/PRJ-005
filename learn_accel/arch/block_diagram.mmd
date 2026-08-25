@@ -1,0 +1,31 @@
+%% block_diagram.mmd — rinriAI hierarchy and dataflow
+%% One node per BLK-###; single clock domain CD_CORE (25 MHz nominal @ tt, orig. 50 MHz superseded).
+flowchart TB
+  subgraph CD_CORE["CD_CORE — 25 MHz (clk_core / rst_n synchronous)"]
+    B2["BLK-002<br/>apb_regs"]
+    B3["BLK-003<br/>sample_stream"]
+    B4["BLK-004<br/>learner"]
+    B5["BLK-005<br/>weight_ram"]
+    B6["BLK-006<br/>stats"]
+    B7["BLK-007<br/>div_seq"]
+  end
+
+  APB["IF-001 APB4 slave (external)"] -->|"psel/penable/pwrite/paddr/pwdata"| B2
+  B2 -->|"prdata/pready/pslverr"| APB
+  STR["IF-002 sample stream (external)"] -->|"s_valid/s_data/s_last"| B3
+  B3 -->|"s_ready"| STR
+
+  B2 -.->|"IFI-001 start_p/step_p/halt_p/freeze/lr_shift"| B4
+  B2 <-->|"IFI-005 b_addr/b_wdata/b_we/b_rdata/init_go/init_val/init_busy"| B5
+  B2 <-->|"IFI-006 counts/err/pred/clr_stats_p"| B6
+  B4 -->|"IFI-009 busy/done"| B2
+
+  B3 -->|"IFI-003 sample_valid/label/x_rdata"| B4
+  B4 -->|"IFI-003 ack_p/x_addr"| B3
+  B3 -->|"IFI-007 err_p"| B6
+  B4 -->|"IFI-008 accept_en"| B3
+
+  B4 <-->|"IFI-004 a_addr/a_wdata/a_we/a_rdata (port A)"| B5
+  B4 -->|"IFI-002 sample_done_p/correct_p/error_p"| B6
+  B4 -->|"div_start/div_num/div_den"| B7
+  B7 -->|"div_done/div_q"| B4

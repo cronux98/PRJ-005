@@ -1,0 +1,35 @@
+# rinriAI formal job — custom [script]: the design is fully synchronous
+# (ASM-002), so sby's default `async2sync` (which trips on $past FFs in
+# yosys 0.65) is skipped. Everything else mirrors the standard prep.
+[options]
+mode bmc
+depth 40
+
+[engines]
+smtbmc z3
+
+[script]
+read -formal learner_fv.v sample_stream_fv.v learn_accel_fv.v rinriAI_fv_b.v apb_regs.v weight_ram.v stats.v div_seq.v
+prep -top rinriAI_fv
+scc -select; simplemap; select -clear
+memory_nordff
+chformal -assume -early
+opt_clean
+formalff -setundef -clk2ff -ff2anyinit -hierarchy
+chformal -live -fair -cover -remove
+opt_clean
+check
+setundef -undriven -anyseq
+opt -fast
+rename -witness
+opt_clean
+
+[files]
+learner_fv.v
+sample_stream_fv.v
+learn_accel_fv.v
+rinriAI_fv_b.v
+apb_regs.v
+weight_ram.v
+stats.v
+div_seq.v

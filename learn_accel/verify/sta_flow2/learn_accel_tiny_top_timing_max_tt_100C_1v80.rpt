@@ -1,0 +1,85 @@
+Startpoint: u_dut/u_learner/_39271_
+            (rising edge-triggered flip-flop clocked by clk)
+Endpoint: u_dut/u_learner/_39486_
+          (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: max
+
+    Delay      Time   Description
+-------------------------------------------------------------
+   0.0000    0.0000   clock clk (rise edge)
+   0.0000    0.0000   clock network delay (ideal)
+   0.0000    0.0000 ^ u_dut/u_learner/_39271_/CLK (sky130_fd_sc_hd__dfxtp_1)
+   0.5544    0.5544 ^ u_dut/u_learner/_39271_/Q (sky130_fd_sc_hd__dfxtp_1)
+   3.8069    4.3612 ^ u_dut/u_learner/_19595_/Y (sky130_fd_sc_hd__nor3b_1)
+   0.8921    5.2533 v u_dut/u_learner/_19690_/Y (sky130_fd_sc_hd__a221oi_1)
+   0.2314    5.4847 ^ u_dut/u_learner/_19729_/Y (sky130_fd_sc_hd__nand2_1)
+   0.1009    5.5855 v u_dut/u_learner/_19730_/Y (sky130_fd_sc_hd__a222oi_1)
+   0.0962    5.6817 ^ u_dut/u_learner/_19731_/Y (sky130_fd_sc_hd__clkinv_1)
+   3.9465    9.6283 ^ u_dut/u_weight_ram/_2156_/X (sky130_fd_sc_hd__lpflow_isobufsrc_1)
+   0.4384   10.0667 v u_dut/u_weight_ram/_2982_/Y (sky130_fd_sc_hd__a22oi_1)
+   0.2491   10.3157 ^ u_dut/u_weight_ram/_2983_/Y (sky130_fd_sc_hd__a21oi_1)
+   0.0815   10.3972 v u_dut/u_weight_ram/_3006_/Y (sky130_fd_sc_hd__nor4_1)
+   0.6575   11.0547 ^ u_dut/u_weight_ram/_3007_/Y (sky130_fd_sc_hd__nand2_1)
+   0.2891   11.3438 v u_dut/u_learner/_20556_/Y (sky130_fd_sc_hd__nand4_1)
+   0.2969   11.6407 ^ u_dut/u_learner/_20563_/X (sky130_fd_sc_hd__xor2_1)
+   0.4384   12.0792 v u_dut/u_learner/_20579_/X (sky130_fd_sc_hd__xnor3_1)
+   0.1655   12.2447 v u_dut/u_learner/_20650_/X (sky130_fd_sc_hd__xor2_1)
+   0.3590   12.6037 v u_dut/u_learner/_20663_/X (sky130_fd_sc_hd__maj3_1)
+   0.3783   12.9820 v u_dut/u_learner/_20666_/X (sky130_fd_sc_hd__maj3_1)
+   0.3783   13.3603 v u_dut/u_learner/_20668_/X (sky130_fd_sc_hd__maj3_1)
+   0.3783   13.7386 v u_dut/u_learner/_20670_/X (sky130_fd_sc_hd__maj3_1)
+   0.3783   14.1169 v u_dut/u_learner/_20673_/X (sky130_fd_sc_hd__maj3_1)
+   0.3783   14.4953 v u_dut/u_learner/_20676_/X (sky130_fd_sc_hd__maj3_1)
+   0.3783   14.8735 v u_dut/u_learner/_20678_/X (sky130_fd_sc_hd__maj3_1)
+   0.3809   15.2544 v u_dut/u_learner/_38573_/X (sky130_fd_sc_hd__maj3_1)
+   0.3803   15.6347 v u_dut/u_learner/_38575_/X (sky130_fd_sc_hd__maj3_1)
+   0.3786   16.0133 v u_dut/u_learner/_38576_/X (sky130_fd_sc_hd__maj3_1)
+   0.3495   16.3628 v u_dut/u_learner/_38579_/X (sky130_fd_sc_hd__maj3_1)
+   0.3745   16.7373 v u_dut/u_learner/_38581_/X (sky130_fd_sc_hd__maj3_1)
+   0.3814   17.1187 v u_dut/u_learner/_38583_/X (sky130_fd_sc_hd__maj3_1)
+   0.3803   17.4990 v u_dut/u_learner/_38585_/X (sky130_fd_sc_hd__maj3_1)
+   0.3786   17.8776 v u_dut/u_learner/_38586_/X (sky130_fd_sc_hd__maj3_1)
+   0.3783   18.2559 v u_dut/u_learner/_38588_/X (sky130_fd_sc_hd__maj3_1)
+   0.3495   18.6054 v u_dut/u_learner/_38591_/X (sky130_fd_sc_hd__maj3_1)
+   0.3719   18.9773 v u_dut/u_learner/_38593_/X (sky130_fd_sc_hd__maj3_1)
+   0.3783   19.3556 v u_dut/u_learner/_38596_/X (sky130_fd_sc_hd__maj3_1)
+   0.3783   19.7339 v u_dut/u_learner/_38598_/X (sky130_fd_sc_hd__maj3_1)
+   0.3495   20.0833 v u_dut/u_learner/_38601_/X (sky130_fd_sc_hd__maj3_1)
+   0.3719   20.4552 v u_dut/u_learner/_38603_/X (sky130_fd_sc_hd__maj3_1)
+   0.3495   20.8047 v u_dut/u_learner/_38605_/X (sky130_fd_sc_hd__maj3_1)
+   0.3719   21.1766 v u_dut/u_learner/_38607_/X (sky130_fd_sc_hd__maj3_1)
+   0.3495   21.5261 v u_dut/u_learner/_38610_/X (sky130_fd_sc_hd__maj3_1)
+   0.3719   21.8980 v u_dut/u_learner/_38612_/X (sky130_fd_sc_hd__maj3_1)
+   0.3495   22.2474 v u_dut/u_learner/_38614_/X (sky130_fd_sc_hd__maj3_1)
+   0.3745   22.6219 v u_dut/u_learner/_38616_/X (sky130_fd_sc_hd__maj3_1)
+   0.3935   23.0154 v u_dut/u_learner/_38618_/X (sky130_fd_sc_hd__maj3_1)
+   0.2386   23.2540 v u_dut/u_learner/_38621_/X (sky130_fd_sc_hd__o211a_1)
+   0.2312   23.4853 v u_dut/u_learner/_38623_/X (sky130_fd_sc_hd__o31a_1)
+   0.1209   23.6061 ^ u_dut/u_learner/_38624_/Y (sky130_fd_sc_hd__nor2_1)
+   0.1454   23.7515 v u_dut/u_learner/_38625_/Y (sky130_fd_sc_hd__o21ai_0)
+   0.2537   24.0052 ^ u_dut/u_learner/_38629_/Y (sky130_fd_sc_hd__o31ai_1)
+   0.1531   24.1584 v u_dut/u_learner/_38632_/Y (sky130_fd_sc_hd__nand2b_1)
+   0.2390   24.3974 ^ u_dut/u_learner/_38636_/Y (sky130_fd_sc_hd__o31ai_1)
+   0.1790   24.5764 ^ u_dut/u_learner/_38638_/X (sky130_fd_sc_hd__and2_0)
+   0.0712   24.6476 v u_dut/u_learner/_38639_/Y (sky130_fd_sc_hd__a21oi_1)
+   0.4212   25.0688 v u_dut/u_learner/_38640_/X (sky130_fd_sc_hd__maj3_1)
+   0.2962   25.3650 v u_dut/u_learner/_38641_/X (sky130_fd_sc_hd__or3_1)
+   0.1723   25.5373 ^ u_dut/u_learner/_38885_/Y (sky130_fd_sc_hd__a32oi_1)
+   0.0741   25.6113 v u_dut/u_learner/_38886_/X (sky130_fd_sc_hd__lpflow_isobufsrc_1)
+   0.0000   25.6113 v u_dut/u_learner/_39486_/D (sky130_fd_sc_hd__dfxtp_1)
+            25.6113   data arrival time
+
+  20.0000   20.0000   clock clk (rise edge)
+   0.0000   20.0000   clock network delay (ideal)
+   0.0000   20.0000   clock reconvergence pessimism
+            20.0000 ^ u_dut/u_learner/_39486_/CLK (sky130_fd_sc_hd__dfxtp_1)
+  -0.1171   19.8829   library setup time
+            19.8829   data required time
+-------------------------------------------------------------
+            19.8829   data required time
+           -25.6113   data arrival time
+-------------------------------------------------------------
+            -5.7285   slack (VIOLATED)
+
+

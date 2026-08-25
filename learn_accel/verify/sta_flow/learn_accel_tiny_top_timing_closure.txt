@@ -1,0 +1,6 @@
+attempt 0: period=20ns worst_wns=n/a -> VIOLATION
+attempt 1: period=20.0500ns worst_wns=n/a -> VIOLATION
+attempt 2: period=20.1000ns worst_wns=n/a -> VIOLATION
+attempt 3: period=20.1500ns worst_wns=n/a -> VIOLATION
+attempt 4: period=20.2000ns worst_wns=n/a -> VIOLATION
+attempt 5: period=20.2500ns worst_wns=n/a -> VIOLATION

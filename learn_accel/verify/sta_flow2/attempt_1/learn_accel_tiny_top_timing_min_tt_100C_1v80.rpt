@@ -1,0 +1,30 @@
+Startpoint: u_dut/u_sample_stream/_125_
+            (rising edge-triggered flip-flop clocked by clk)
+Endpoint: u_dut/u_stats/_742_ (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: min
+
+    Delay      Time   Description
+-------------------------------------------------------------
+   0.0000    0.0000   clock clk (rise edge)
+   0.0000    0.0000   clock network delay (ideal)
+   0.0000    0.0000 ^ u_dut/u_sample_stream/_125_/CLK (sky130_fd_sc_hd__dfxtp_1)
+   0.2836    0.2836 ^ u_dut/u_sample_stream/_125_/Q (sky130_fd_sc_hd__dfxtp_1)
+   0.0343    0.3179 v u_dut/u_stats/_706_/Y (sky130_fd_sc_hd__nor2_1)
+   0.0550    0.3729 ^ u_dut/u_stats/_707_/Y (sky130_fd_sc_hd__nor2_1)
+   0.0000    0.3729 ^ u_dut/u_stats/_742_/D (sky130_fd_sc_hd__dfxtp_1)
+             0.3729   data arrival time
+
+   0.0000    0.0000   clock clk (rise edge)
+   0.0000    0.0000   clock network delay (ideal)
+   0.0000    0.0000   clock reconvergence pessimism
+             0.0000 ^ u_dut/u_stats/_742_/CLK (sky130_fd_sc_hd__dfxtp_1)
+  -0.0415   -0.0415   library hold time
+            -0.0415   data required time
+-------------------------------------------------------------
+            -0.0415   data required time
+            -0.3729   data arrival time
+-------------------------------------------------------------
+             0.4144   slack (MET)
+
+

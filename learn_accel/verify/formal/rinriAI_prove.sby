@@ -1,0 +1,36 @@
+# rinriAI formal job — skip_prep: the design is fully synchronous (ASM-002);
+# sby's injected async2sync trips on $check/$past FFs in yosys 0.65, so the
+# internal prep is skipped and the [script] does the whole formal prep.
+[options]
+mode prove
+depth 10
+skip_prep on
+
+[engines]
+smtbmc z3
+
+[script]
+read -formal /home/smdadmin/PRJ-005/verify/formal/learner_fv.v /home/smdadmin/PRJ-005/verify/formal/sample_stream_fv.v /home/smdadmin/PRJ-005/verify/formal/learn_accel_fv.v /home/smdadmin/PRJ-005/verify/formal/rinriAI_fv_c.v /home/smdadmin/PRJ-005/rtl/apb_regs.v /home/smdadmin/PRJ-005/rtl/weight_ram.v /home/smdadmin/PRJ-005/rtl/stats.v /home/smdadmin/PRJ-005/rtl/div_seq.v
+prep -top rinriAI_fv
+scc -select; simplemap; select -clear
+memory_nordff
+chformal -assume -early
+opt_clean
+formalff -setundef -clk2ff -ff2anyinit -hierarchy
+chformal -live -fair -cover -remove
+opt_clean
+check
+setundef -undriven -anyseq
+opt -fast
+rename -witness
+opt_clean
+
+[files]
+/home/smdadmin/PRJ-005/verify/formal/learner_fv.v
+/home/smdadmin/PRJ-005/verify/formal/sample_stream_fv.v
+/home/smdadmin/PRJ-005/verify/formal/learn_accel_fv.v
+/home/smdadmin/PRJ-005/verify/formal/rinriAI_fv_c.v
+/home/smdadmin/PRJ-005/rtl/apb_regs.v
+/home/smdadmin/PRJ-005/rtl/weight_ram.v
+/home/smdadmin/PRJ-005/rtl/stats.v
+/home/smdadmin/PRJ-005/rtl/div_seq.v

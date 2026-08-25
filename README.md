@@ -1,26 +1,21 @@
-# rinriAI (PRJ-005)
+# PRJ-005 — AI Accelerator Projects
 
-**Simple, learning AI accelerator** — an IP block that *learns* (not just infers), testable with simulation **and** firmware, fed by online datasets as experiments.
+Umbrella repo for two AI-accelerator IP projects. Both target Sky130 via the
+front-end ASIC pipeline (fe-spec → fe-arch → fe-rtl → fe-yosys → fe-gls →
+fe-opensta → fe-sby → … → fe-regression) and are verified in simulation first
+(FPGA on Nexys A7 is planned but deferred — simulation-first per Rinri
+2026-08-25).
 
-## Goal
+## Projects
 
-A small, understandable learning-accelerator IP that:
-- implements an **online learning** algorithm in RTL (weights update continuously from a stream of samples — no cloud training),
-- is testable via simulation (iverilog/Verilator/cocotb) and via **firmware** (bare-metal program driving the IP through a register interface and streaming samples),
-- runs **experiments** fed by real, downloadable datasets (MNIST-class byte streams, adaptive-filter signal traces, etc.),
-- targets the existing front-end ASIC pipeline (fe-spec → fe-arch → fe-rtl → fe-yosys → fe-gls → fe-opensta → fe-sby → … → fe-regression), pure Verilog-2001/2005, Sky130-ready.
+| Directory | Project | What it does |
+|-----------|---------|--------------|
+| `learn_accel/` | **rinriAI** (training + inference) | MLP (784-32-10) that *learns*: streams labeled MNIST-class samples, online SGD per sample (forward = inference, backward + weight update = training), freeze bit for inference-only, APB CSR + streaming interface, live correct/error counters. |
+| `mnist_npu/` | **MNIST inference NPU** (inference only) | Tiny inference-only accelerator: pre-trained Q8.8 weights + dataset loaded from memory ($readmemh BRAM), LUT sigmoid, single MAC forward pass, argmax; LED 0-9 digit display, LED10 trash/failure, LED11 busy blink, UART TX "This is number N | confidence % | expected | CORRECT/INCORRECT". No training, no host CPU. |
 
-## Repository layout
+## Repo history
 
-| Path | Contents |
-|------|----------|
-| `research/` | Curated papers, online books, datasets, and design directions (you are here) |
-| `spec/` | (planned) fe-spec stage output |
-| `arch/` | (planned) fe-arch stage output |
-| `rtl/` | (planned) fe-rtl stage output |
-| `fw/` | (planned) firmware + dataset→hex tooling |
-| `sim/` | (planned) testbenches |
-
-## Status
-
-- 2026-08-20: repo created as `learning-accelerator-ip`, renamed to **PRJ-005** (project name **rinriAI**). Research compiled and pushed; architect agent (deepseek-v4-flash) authored **spec/** + **arch/** complete, **rtl/** partial (5 of N blocks: apb_regs, div_seq, sample_stream, stats, weight_ram — top-level integration pending). Authoring PAUSED by Rinri 01:10Z; resume by re-dispatching architect. All artifacts pushed.
+- 2026-08-20: repo created as `learning-accelerator-ip`, renamed PRJ-005 (rinriAI).
+- 2026-08-25: reorganized into `learn_accel/` (existing training+inference project,
+  moved intact) + `mnist_npu/` (new inference-only project). FPGA deferred;
+  golden-model-first flow for mnist_npu.

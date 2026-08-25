@@ -1,0 +1,70 @@
+// expected.hex - rinriAI arch/golden_model, regenerated from golden_ref_model.c
+// (C reference model, REQ-011; value-identical to verify/golden/tiny_shipped_corrected)
+// $readmemh-loadable expected outputs for the fe-rtl Verilog testbench
+// Layout (55 words):
+//   Section 1, words 0..24: per PROCESSED sample (5 samples x 5 words):
+//     word 0: pred (8-bit, lowest index on tie)
+//     word 1: correct flag (0/1)
+//     word 2: sample_count (32-bit, saturating)
+//     word 3: correct_count (32-bit, saturating)
+//     word 4: error_count (32-bit, saturating)
+//   Section 2, words 25..54: final weights/biases after all processed
+//     samples, address order 0..29, 16-bit Q8.8 words.
+// The 6th vector (invalid label 0x05 >= CLASSES=2, REQ-018) is REJECTED:
+// it is not counted and contributes NO row here; proof lives in the
+// REJECTED line of expected_outputs.txt and the TB's err/counter checks.
+00000001
+00000000
+00000001
+00000000
+00000001
+00000000
+00000000
+00000002
+00000000
+00000002
+00000001
+00000000
+00000003
+00000000
+00000003
+00000000
+00000001
+00000004
+00000001
+00000003
+00000000
+00000000
+00000005
+00000001
+00000004
+0000FF83
+0000FF8A
+0000FF91
+0000FF98
+0000FF9F
+0000FFA6
+0000FFAD
+0000FFB4
+0000FFBB
+0000FFC2
+0000FFC9
+0000FFD0
+0000FFD7
+0000FFDE
+0000FFE5
+0000FFEC
+0000FFF2
+0000FFF8
+0000FFFF
+00000006
+00000015
+0000001B
+00000021
+00000024
+0000000B
+00000010
+00000018
+00000020
+00000039
+00000014

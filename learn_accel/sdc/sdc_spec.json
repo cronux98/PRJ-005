@@ -1,0 +1,27 @@
+{
+  "name": "rinriAI",
+  "clocks": [
+    {"name": "clk_core", "port": "clk_core", "period": 40.000, "uncertainty": 1.000, "latency": 1.500}
+  ],
+  "generated_clocks": [],
+  "clock_groups_async": [],
+  "inputs": [
+    {"name": "psel",     "clock": "clk_core", "delay": 6.000},
+    {"name": "penable",  "clock": "clk_core", "delay": 6.000},
+    {"name": "pwrite",   "clock": "clk_core", "delay": 6.000},
+    {"name": "paddr[*]", "clock": "clk_core", "delay": 6.000},
+    {"name": "pwdata[*]", "clock": "clk_core", "delay": 6.000},
+    {"name": "s_valid",  "clock": "clk_core", "delay": 6.000},
+    {"name": "s_data[*]", "clock": "clk_core", "delay": 6.000},
+    {"name": "s_last",   "clock": "clk_core", "delay": 6.000},
+    {"name": "rst_n",    "clock": "clk_core", "delay": 6.000}
+  ],
+  "outputs": [
+    {"name": "prdata[*]", "clock": "clk_core", "delay": 6.000, "load": 0.050},
+    {"name": "pready",   "clock": "clk_core", "delay": 6.000},
+    {"name": "pslverr",  "clock": "clk_core", "delay": 6.000},
+    {"name": "s_ready",  "clock": "clk_core", "delay": 6.000}
+  ],
+  "false_paths": [],
+  "multicycle_paths": []
+}
