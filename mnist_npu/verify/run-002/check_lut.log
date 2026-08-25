@@ -1,0 +1,1 @@
+PASS: rtl/sigmoid_lut.hex matches golden sigmoid(z) bit-exactly for all 65536/65536 addresses

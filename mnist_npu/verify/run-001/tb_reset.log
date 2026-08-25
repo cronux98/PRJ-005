@@ -1,0 +1,21 @@
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @6000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @16000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @26000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @36000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @46000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @56000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @66000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @76000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @86000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @96000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @106000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @116000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @126000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @136000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @146000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @156000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @166000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @176000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @186000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @196000
+FAIL tb_reset: 20 errors

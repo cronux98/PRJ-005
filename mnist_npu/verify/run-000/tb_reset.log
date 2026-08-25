@@ -1,0 +1,23 @@
+FAIL TOP-001: led==0 throughout reset: got=0x00000xxx want=0x00000000 @5000
+FAIL rt_tx idle-high throughout reset: got=x want=1 @5000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @15000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @25000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @35000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @45000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @55000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @65000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @75000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @85000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @95000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @105000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @115000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @125000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @135000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @145000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @155000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @165000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @175000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @185000
+FAIL TOP-001: led==0 throughout reset: got=0x00000001 want=0x00000000 @195000
+FAIL e is ST_L1_MAC (compute started): got=0x00000000 want=0x00000001 @205000
+FAIL tb_reset: 22 errors

@@ -7,3 +7,13 @@ __pycache__/
 
 # mnist_npu: raw dataset downloads (regenerable via tools/fetch_mnist.sh)
 data/
+
+# mnist_npu verification EVIDENCE is versioned (run dirs + iterations.log);
+# only compiled/generated junk is excluded. (run-*/ + *.log above would
+# otherwise swallow the evidence dirs.)
+!mnist_npu/verify/iterations.log
+!mnist_npu/verify/run-*/
+!mnist_npu/verify/run-*/**
+mnist_npu/verify/run-*/**/*.vvp
+mnist_npu/verify/**/sim_build/
+mnist_npu/verify/**/__pycache__/

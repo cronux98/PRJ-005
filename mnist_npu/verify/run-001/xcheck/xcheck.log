@@ -1,0 +1,6 @@
+ERROR: /home/smdadmin/PRJ-005/mnist_npu/rtl/weight_rom.v:27: $readmemh: Unable to open arch/golden_model/weights.hex for reading.
+ERROR: /home/smdadmin/PRJ-005/mnist_npu/rtl/image_rom.v:26: $readmemh: Unable to open arch/golden_model/images.hex for reading.
+ERROR: /home/smdadmin/PRJ-005/mnist_npu/rtl/label_rom.v:25: $readmemh: Unable to open arch/golden_model/labels.hex for reading.
+ERROR: /home/smdadmin/PRJ-005/mnist_npu/rtl/sigmoid_lut.v:32: $readmemh: Unable to open rtl/sigmoid_lut.hex for reading.
+XCHECK: top=mnist_npu clk=clk rst=rst_n rst_active=0
+XCHECK SUMMARY: 0 X/Z events on outputs
