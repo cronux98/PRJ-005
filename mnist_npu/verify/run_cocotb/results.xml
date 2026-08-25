@@ -1,0 +1,6 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1787648984" />
+    <testcase name="test_mnist_uart_led" classname="test_mnist_top" file="/home/smdadmin/PRJ-005/mnist_npu/verify/run_cocotb/test_mnist_top.py" lineno="101" time="62.85335159301758" sim_time_ns="4827680.0" ratio_time="76808.63275612991" />
+  </testsuite>
+</testsuites>

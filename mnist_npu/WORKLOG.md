@@ -126,3 +126,75 @@ No `SPEC-E`, `ARCH-E`, or `RTL-E` structured halt occurred at any stage. The one
 knowingly and explicitly overridden (fe-arch's `technology.pdk==sky130` gate, `ARCH-E007`) was
 overridden with full written justification rather than silently skipped, per the same reasoning
 already applied at the fe-spec stage.
+
+## Stage 4 — frontend verification (verify/) — fe-iverilog -> fe-cocotb -> fe-regression
+
+Verification agent pass, RTL frozen at `ae9b07d` throughout (confirmed via a constant RTL md5,
+`f9bb51a6e18820abfc894f06f23a534a`, across every run recorded in `verify/iterations.log`). Full
+detail in `verify/report.txt` and `verify/FINDINGS.md`; summary here.
+
+**Baseline reproduction (isolated, zero risk to frozen files):** `golden_ref_model.c` rebuilt and
+re-run from a `/tmp` scratch directory (symlinked inputs, never the real `arch/golden_model/`
+outputs) — byte-identical to the committed `expected.hex`/`images.hex`/`labels.hex`/
+`expected_outputs.txt` (correct 9225 / incorrect 270 / trash 505 / 92.25%, matching the fe-arch
+stage's own reproduction exactly).
+
+**Stage 1 (fe-iverilog, PRIMARY GATE):** 8 pure-Verilog-2001/2005 testbenches (mirroring
+`learn_accel/verify`'s conventions: `tb_common/*.vh` + `tests/tb_*.v` + versioned `run-NNN/` +
+append-only `iterations.log`), covering VP-TOP-001..008, VP-LED-001..003, VP-MAC-001..003,
+VP-LUT-001/002, VP-ROM-001, VP-UART-001/002, VP-CTRL-001/002 and the verify-task's own C1-C7 checks.
+200-image (2 full free-running passes, proving the 0..99 wraparound) bit-exact regression: 0
+mismatches on pred/confidence/verdict, 0 byte mismatches across the full UART stream (md5-identical
+to the golden `expected_outputs.txt`), 0 LED-encoding mismatches, 100% FSM state coverage. Result:
+8 PASS / 1 FAIL / 0 ERROR — the 1 FAIL is FINDING-001 (below), not a data-path issue. Elaboration
+lint (`ivl_lint.sh`) and the X-hygiene structural scan (`x_check.sh`) both PASS clean (0
+warnings/errors, 0 X/Z events).
+
+**Stage 2 (fe-cocotb, independent harness):** a separate Python/cocotb 2.0.1 implementation
+(`test_mnist_top.py`, async/await + RisingEdge polling — deliberately not sharing any code or
+control-flow shape with Stage 1's Verilog tasks) re-verifies UART framing/line-strings, LED[11]
+blink-window timing, and verdict/LED[10]/LED[9:0] exclusivity over 9 images (8 CORRECT + 1 TRASH
+from the golden set). Result: 1/1 PASS, 0 mismatches. (A same-session TB bug — a flawed assumption
+about `lf_done` timing relative to full UART transmission — was caught and fixed before this
+verdict; documented in `verify/report.txt`, not an RTL issue.)
+
+**Stage 3 (fe-regression):** consolidated into `verify/run-001/` + `verify/iterations.log`
+(append-only, RTL md5 per entry) + `verify/report.txt`. Constrained-random multi-seed REGRESS
+doesn't apply to this design (fully directed stimulus per `spec/verification_plan.md`'s own stated
+methodology — no randomness to vary); the 200-image/2-pass run already is this design's soak, since
+the free-running loop only ever cycles the same 100 golden vectors and further passes are provably
+identical (no persistent state beyond the deterministically-wrapping `img_idx`).
+
+**1 finding, RTL, Low severity (FINDING-001, not fixed — RTL frozen for this pass):** `led[0]` reads
+1, not 0, throughout reset (violates REQ-030/VP-TOP-001's literal `led[11:0]==0` criterion, and
+contradicts `arch.md`'s own documented BLK-010 reset-behaviour claim). Root cause: `led_ctrl.v`
+resets `verdict_r<=2'd0` (CORRECT) rather than `2'd2` (TRASH) — combined with `pred_r<=4'd0`, the
+combinational `led_digit=(verdict_r==2'd2)?0:(10'd1<<pred_r)` evaluates to 1, not 0. Cosmetic/
+display-only: does not affect inference correctness (fully bit-exact across 209 total images
+verified between both stages) — only the LED digit display's transient value between reset-release
+and the first result being presented. Full reproduction command, expected-vs-actual table, and a
+suggested one-line fix direction are in `verify/FINDINGS.md`.
+
+**TB bugs found and fixed this session (TB-side only, documented for transparency, not RTL):** an
+early UART monitor mixed `@(negedge uart_tx)` with `@(posedge clk)` cycle-counting, producing a
+spurious extra sampled cycle per frame boundary (confirmed via a from-scratch `@(posedge
+clk)`-only cross-check probe reading `uart_tx.state`/`baud_cnt` directly — a TB artifact, not an
+RTL timing bug: the real pin holds each symbol for exactly `CLK_DIV` cycles); two testbenches
+cleared a DUT-facing control signal with a blocking assignment immediately after the
+`@(posedge clk)` it needed to be seen high on, racing the DUT's own NBA-driven always block (fixed
+by switching to non-blocking, matching the `tb_reset` task's existing correct pattern); one
+testbench read DUT-internal registers immediately after `@(posedge clk)` with no settle delay,
+intermittently racing the DUT's own always blocks (fixed with a `#1` delay, confirmed via
+`$strobe`). All fully detailed with reproduction evidence in `verify/report.txt`.
+
+**Verdict:** NOT ALL GREEN — 1 Low-severity RTL finding (FINDING-001), otherwise fully green across
+both independent verification stages. See `verify/report.txt` for the complete evidence index.
+
+## FINDING-001 fix + regression rerun (2026-08-25, deepseek-v4-flash in-session)
+
+- Fixed rtl/led_ctrl.v: led output forced to 12'h0 while rst_n asserted.
+  Rejected the FINDINGS.md-suggested verdict_r<=2'd2 (would flip led[10] high
+  during reset — violation would just move). Fix matches arch.md BLK-010.
+- tb_reset: PASS (was FAIL). Full regression run-002: PASS=9 FAIL=0 ERROR=0,
+  200/200 UART lines byte-exact, check_lut 65536/65536. cocotb stage2 PASS.
+- REQ-030 fully closed; all REQ-001..031 now green.

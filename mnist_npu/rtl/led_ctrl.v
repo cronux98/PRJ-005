@@ -70,7 +70,12 @@ module led_ctrl #(
     // led[11]: busy-blink, steady off once presented — REQ-019
     wire       led_blink = lc_busy ? blink_toggle_r : 1'b0;
 
-    assign led = {led_blink, led_fail, led_digit};
+    // REQ-030 / FINDING-001 fix (2026-08-25): force led[11:0]==0 while reset is
+    // asserted. A naive verdict_r<=2'd2 reset would zero led_digit but flip
+    // led_fail high (led[10]=1 during reset), merely moving the violation.
+    // Overriding the output level during rst_n is the exact minimal fix that
+    // matches arch.md BLK-010's documented "led[11:0]==12'h000 during reset".
+    assign led = (!rst_n) ? 12'd0 : {led_blink, led_fail, led_digit};
 endmodule
 
 `default_nettype wire

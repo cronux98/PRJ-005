@@ -1,0 +1,262 @@
+mnist_npu — Frontend Verification Report (fe-iverilog -> fe-cocotb -> fe-regression)
+=====================================================================================
+Generated : 2026-08-25
+RTL       : rtl/ @ commit ae9b07d (FROZEN — no edits made; see verify/FINDINGS.md)
+RTL md5   : f9bb51a6e18820abfc894f06f23a534a (cat filelist.f sources + mnist_npu_defs.vh | md5sum)
+Run dir   : verify/run-001/ (+ verify/run-001/cocotb_stage2/, verify/run-001/xcheck/)
+Log       : verify/iterations.log (append-only, all stages)
+
+SUMMARY
+-------
+Stage 1 (fe-iverilog, PRIMARY GATE): 8 PASS / 1 FAIL / 0 ERROR.
+Stage 2 (fe-cocotb, independent harness): PASS (1/1, 9 images independently
+  re-verified via a separate Python implementation).
+Stretch (fe-iverilog LINT + XCHECK): both PASS.
+1 RTL finding (FINDING-001, Low severity, cosmetic/display-only — see below).
+Every OTHER check across both stages (data-path bit-exactness, UART byte
+stream, LED digit/fail encoding, blink timing, ROM content, LUT exhaustive
+table, MAC saturation/overflow margin, FSM state coverage, X-hygiene) is
+GREEN with 0 mismatches.
+
+VERDICT: NOT ALL GREEN — 1 finding (FINDING-001, RTL, Low severity, reset-
+only cosmetic LED deviation). All data-path / UART / timing correctness
+checks pass. See "Findings" below for the precise, reproducible evidence
+and suggested fix direction (not applied — rtl/ is frozen for this pass).
+
+STAGE 1 — fe-iverilog (verify/run-001/, PRIMARY GATE)
+------------------------------------------------------
+Pure-Verilog-2001/2005 testbenches (verify/tb_common/*.vh + verify/tests/*.v),
+run via verify/scripts/run_tests.sh, mirroring learn_accel/verify conventions.
+
+| Test                      | VP items                                    | Verdict | Log |
+|----------------------------|---------------------------------------------|---------|-----|
+| tb_reset                  | VP-TOP-001                                   | FAIL*   | run-001/tb_reset.log |
+| tb_rom_readback            | VP-ROM-001                                   | PASS    | run-001/tb_rom_readback.log |
+| tb_sigmoid_lut_unit        | VP-LUT-002                                   | PASS    | run-001/tb_sigmoid_lut_unit.log |
+| tb_mac_datapath_unit       | VP-MAC-001/002/003                           | PASS    | run-001/tb_mac_datapath_unit.log |
+| tb_uart_line_fmt_unit      | VP-UART-001                                  | PASS    | run-001/tb_uart_line_fmt_unit.log |
+| tb_mnist_top               | VP-TOP-002..008, VP-LED-001..003, VP-CTRL-001| PASS    | run-001/tb_mnist_top.log |
+| tb_uart_realdiv             | VP-UART-002 (real CLK_DIV=868)               | PASS    | run-001/tb_uart_realdiv.log |
+| check_lut.py               | VP-LUT-001 (exhaustive 65536/65536)          | PASS    | run-001/check_lut.log |
+| uart_diff (C2)             | VP-TOP-004                                   | PASS    | run-001/uart_diff.log |
+
+*tb_reset FAILs on FINDING-001 only (led[9:0] reads 1, not 0, during reset —
+20/20 reset-cycle checks); its OTHER checks in the same test (uart_tx
+idle-high throughout reset, img_idx==0 and first-state==ST_L1_MAC
+immediately after release) all PASS. See "Findings" below.
+
+### Check-by-check evidence (C1-C7 from the verify-agent task spec)
+
+- **C1** (pred/conf/verdict == expected.hex, all 100, bit-exact): tb_mnist_top,
+  200/200 iterations (2 full passes), 0 mismatches.
+- **C2** (UART byte stream == golden expected_outputs.txt, byte-for-byte):
+  tb_mnist_top's independent Verilog UART bit-level decoder
+  (tb_common/uart_monitor.vh) captured 200 full lines to
+  run-001/uart_captured.txt; `head -100`/`tail -100` each md5-match
+  `head -100 arch/golden_model/expected_outputs.txt` exactly
+  (62e60c04b8b9597d782110aab190c7f4, all three identical). 0 byte
+  mismatches across both passes.
+- **C3** (led[9:0] one-hot == pred, all-off on TRASH): tb_mnist_top,
+  200/200 iterations, 0 mismatches (post-reset/post-presentation only —
+  see FINDING-001 for the reset-window exception).
+- **C4** (led[10] == (verdict != 0)): tb_mnist_top, 200/200, 0 mismatches.
+  Independently re-confirmed in Stage 2 (cocotb), 9/9 images, 0 mismatches.
+- **C5** (led[11] >=2 transitions in busy window, 0 during hold): tb_mnist_top,
+  200/200 images >=2 transitions (BLINK_CYCLES=4 sim override gives
+  thousands of toggles per image's ~51k-cycle compute window); 0 HOLD-window
+  toggles observed. Independently re-confirmed in Stage 2 via a concurrent
+  Python monitor coroutine, 9/9 images, 0 violations.
+- **C6** (memory init sanity, image 000): confirmed pred=7, confidence=94%
+  against the ACTUAL golden expected.hex/expected_outputs.txt value (the
+  verify-task prompt's own text stated "93%" for image 000 — that figure
+  does not match the frozen golden files, which say 94%; the golden files
+  are authoritative and were used, not the prompt's stated figure).
+- **C7** (no X/Z on outputs after reset release): tb_mnist_top's own
+  continuous per-cycle `^led`/`uart_tx` X-scan, 0 events across the full
+  200-image run. Independently re-confirmed via fe-iverilog's structural
+  XCHECK scan (scripts/x_check.sh, X-injection + scan, no cocotb needed):
+  **XCHECK: PASS — 0 X/Z events** (verify/run-001/xcheck/XCHECK_REPORT.md).
+
+### Additional module-level VP coverage
+
+- VP-ROM-001: full port-level readback of weight_rom (25,450 words),
+  image_rom (78,400 words), label_rom (100 words) vs an independently
+  `$readmemh`'d reference array — 0 mismatches (~104k words total).
+- VP-LUT-001: `tools/check_lut.py` exhaustive 65536/65536 bit-exact vs the
+  golden rational-sigmoid formula — PASS, 0 mismatches (re-run this stage,
+  not just relied on the fe-rtl stage's prior run).
+- VP-LUT-002: boundary spot checks (z=0x0000/0x7FFF/0x8000/0xFFFF) — PASS,
+  matches the documented hand-derived values (including the
+  truncation-flattens-both-(-1)-and-0-to-128 case).
+- VP-MAC-001/002: directed bias-load + accumulate sequences, plus a
+  784-term worst-case-magnitude accumulate (pixel=255 x weight=32767, the
+  extreme of the golden weight/pixel ranges), cross-checked against an
+  INDEPENDENT 64-bit Verilog behavioural reference model (mirrors
+  golden_ref_model.c's `long acc`, not the RTL's own 40-bit accumulator
+  structure) — 0 divergence, confirming REQ-028's no-overflow margin.
+- VP-MAC-003: directed saturation vectors reach both +32767 and -32768
+  clamps exactly.
+- VP-UART-001: all three verdict line formats (CORRECT/INCORRECT/TRASH)
+  plus confidence boundary values (0, 1, 9, 10, 99, 100 incl. the
+  3-digit-defensive dead-code path) driven directly at uart_line_fmt and
+  diffed byte-for-byte against an independently-coded decimal-ASCII
+  encoder (not the RTL's field generator) — 0 mismatches. (The top-level
+  100-image golden set alone has zero INCORRECT verdicts, so this unit
+  test is what actually exercises that format branch and the untested
+  confidence values.)
+- VP-UART-002: re-run at the REAL production CLK_DIV=868 (not just the
+  sim-fast CLK_DIV=4 used elsewhere), 2 full lines (images 000 CORRECT,
+  008 TRASH) — every bit of every frame verified constant for exactly
+  CLK_DIV cycles, 0 width violations.
+- VP-CTRL-001: all 10 legal ctrl_fsm states entered at least once (100%
+  state coverage) over the 200-image run; states 10-15 (illegal encodings)
+  never entered in normal operation, as expected.
+- VP-CTRL-002: by inspection (per the VP item's own stated method) — every
+  `case` statement's `default:` arc returns to a safe/reset state
+  (ST_IMG_START / ST_UTX_IDLE / ST_LF_IDLE); every combinational `always @*`
+  block initializes all its outputs before the case/if chain (no latch
+  inference); `uart_line_fmt`'s two block-local `integer` write-pointers
+  (`p` in the COMPOSE always@*, `w` in the separate register-copy
+  always@(posedge clk)) are each used in exactly one always block, never
+  shared. No violations found.
+- Elaboration lint cross-check (fe-iverilog ivl_lint.sh, `-g2012 -Wall
+  -Wfloating-nets`): PASS, 0 errors, 0 warnings.
+
+STAGE 2 — fe-cocotb (verify/run-001/cocotb_stage2/, independent harness)
+--------------------------------------------------------------------------
+verify/tests/test_mnist_top.py — cocotb 2.0.1 + Icarus, a SEPARATE
+implementation from Stage 1 (Python async/await coroutines driven by
+RisingEdge polling, vs Verilog `for`-loop cycle-counted tasks — different
+language, different control-flow shape, so a Stage-1 bug is very unlikely
+to be reproduced identically here). Re-verifies:
+  - UART framing (start/8 data LSB-first/stop, byte width == CLK_DIV cycles
+    per bit, independently decoded bit-by-bit from the `uart_tx` pin only).
+  - Exact UART line strings, diffed against arch/golden_model/
+    expected_outputs.txt (not against Stage 1's captured file).
+  - LED[11] busy-window blink-transition count (>=2/image) AND HOLD-window
+    constancy (via a concurrent monitor coroutine — see the debug note in
+    the test file: `lf_done`/HOLD begins the moment the LAST UART byte is
+    ACCEPTED, not once it finishes transmitting, since HOLD_CYCLES=8 <
+    10*CLK_DIV=40; a naive sequential post-decode HOLD-wait overshoots into
+    the NEXT image entirely — caught and fixed during this stage, see
+    verify/iterations.log cocotb-stage2 entry and the code comment).
+  - verdict/LED[10] AND led[9:0]-digit exclusivity.
+
+Result (9 images, 0..8 — covers 8 CORRECT + 1 TRASH verdict from the golden
+set): **TESTS=1 PASS=1 FAIL=0**. All 9 images: UART line byte-exact vs
+golden, led[11] >=2 transitions during busy (12739-12746 observed, tiny
+BLINK_CYCLES=4 sim override), 0 HOLD-window violations, led[10]/led[9:0]
+exclusivity exact. Full log: verify/run-001/cocotb_stage2/cocotb_icarus.log.
+
+STAGE 3 — fe-regression (this file + verify/iterations.log)
+--------------------------------------------------------------
+- Versioned run dirs: verify/run-000 (first pass, 3 pre-fix TB bugs caught
+  and fixed — see below), verify/run-001 (final, post-fix).
+- Append-only verify/iterations.log: every run/lint/xcheck/cocotb/baseline
+  invocation logged with timestamp, PASS/FAIL/ERROR counts, and RTL md5
+  (unchanged across the whole session: f9bb51a6e18820abfc894f06f23a534a,
+  confirming rtl/ was never modified during verification).
+- STRESS/REGRESS scope note: this design's stimulus is, per
+  spec/verification_plan.md's own stated methodology, "fully directed... no
+  external stimulus port to randomise beyond rst_n timing" — a
+  constrained-random multi-seed REGRESS mode doesn't apply (there is no
+  randomness to vary). The 200-image / 2-full-pass run in tb_mnist_top
+  already IS the soak for this design: the free-running loop only ever
+  cycles through the same 100 golden vectors, so a 3rd+ pass would provably
+  re-produce pass-1/pass-2's already-bit-identical results (img_idx wraps
+  deterministically, no other persistent state carries between passes) —
+  additional passes were judged not to add verification value proportional
+  to their ~54s/100-images runtime cost, and were not run.
+
+TB BUGS FOUND AND FIXED DURING THIS SESSION (TB-side, not RTL — per the
+verify agent's own tests, fixed directly; documented for transparency)
+------------------------------------------------------------------------
+1. UART monitor (tb_common/uart_monitor.vh): an early version synchronized
+   frame starts with `@(negedge uart_tx)` then counted bit-windows with
+   `@(posedge clk)` — mixing an edge-type wait on a non-clock net with
+   clock-edge counting produced a spurious extra sampled cycle at every
+   frame boundary (confirmed a TB artifact, not an RTL bug, by cross-
+   checking against a plain `@(posedge clk)`-only polling monitor reading
+   `dut.u_uart_tx.{state,baud_cnt}` directly — the real pin holds each
+   symbol for exactly CLK_DIV cycles). Rewritten to poll purely via
+   `@(posedge clk)`, eliminating the cross-event-region race.
+2. tb_mac_datapath_unit.v / tb_uart_line_fmt_unit.v: stimulus tasks used
+   BLOCKING assignment to clear a control signal (`mac_bias_ld`, `lf_start`)
+   immediately after the `@(posedge clk)` it needed to be seen HIGH on —
+   racing against the DUT's own NBA-driven always block for that same edge
+   (process scheduling order between separate always/initial blocks on the
+   same edge is not guaranteed). Fixed by switching to NON-BLOCKING
+   assignment throughout (matching tb_common/clk_rst.vh's `tb_reset`
+   pattern, which already did this correctly).
+3. tb_reset.v: reading DUT-internal registers immediately after
+   `@(posedge clk)` (no settle delay) intermittently raced against the
+   DUT's own always blocks for that same edge — confirmed via `$strobe`
+   (which defers to the fully-settled value) showing a DIFFERENT value than
+   a same-instant `$display`. Fixed with a `#1` settle delay before every
+   post-edge DUT-signal read (also added defensively to tb_mnist_top.v's
+   equivalent reads, which had happened to work without it — the DUT
+   signals sampled there are stable well before the sampling point, but the
+   fix removes the fragility rather than relying on that).
+4. tb_mnist_top.v: the concurrent UART-capture process was still mid-byte
+   on the 200th (last) image's line when the main process reached its loop
+   end and called $finish, truncating the last line (199/200 lines
+   captured). Fixed by waiting a worst-case-line-length margin
+   (`69*10*CLK_DIV+200` cycles) after the main loop before finishing.
+5. tb_mnist_top.v: the HOLD-window led[11]-constancy check flagged the
+   expected transition edge itself (led[11] snapping to 0 the SAME cycle
+   `lc_busy` deasserts is REQ-019/020's own specified behaviour, not a
+   violation) as a false FAIL. Fixed to only flag toggles strictly INSIDE
+   the hold window (excluding the boundary edge).
+6. test_mnist_top.py (cocotb): see the Stage 2 write-up above — a
+   sequential "wait for HOLD right after UART decode" assumption was wrong
+   given `lf_done`'s accept-vs-complete semantics; replaced with a
+   concurrent monitor coroutine.
+
+None of these were RTL issues — each was independently confirmed against
+either a from-scratch cross-check tool (a second, minimal `@(posedge
+clk)`-only Verilog probe) or Stage 1 vs Stage 2 agreement (two independent
+implementations reaching the same PASS verdict on the same design once the
+TB bugs were fixed).
+
+FINDINGS
+--------
+See verify/FINDINGS.md for full detail. Summary:
+
+**FINDING-001 (RTL, Low severity):** `led[0]` reads 1 (not 0) throughout
+reset, violating REQ-030 / VP-TOP-001's literal "led[11:0]==0 ... throughout
+reset" criterion, and contradicting arch.md's own documented reset-behaviour
+claim for BLK-010. Root cause: `led_ctrl.v` resets `verdict_r<=2'd0`
+(CORRECT), not `2'd2` (TRASH) — the only encoding that forces
+`led_digit=(verdict_r==2'd2)?0:(10'd1<<pred_r)` to all-zero; combined with
+`pred_r<=4'd0`, `led_digit` evaluates to `10'd1<<0=1`. Cosmetic/display-only:
+does NOT affect the inference data path (fully bit-exact, 0 mismatches
+across 209 total images verified between both stages) — only the LED
+digit-display's transient value between reset-release and the first result
+being presented (~510 us at default hardware pacing). Reproduction command
+and suggested one-line fix direction (reset `verdict_r` to `2'd2` instead of
+`2'd0`) are in FINDINGS.md. NOT applied — rtl/ is frozen for this
+verification pass.
+
+ARTIFACT INDEX
+--------------
+- verify/tb_common/{clk_rst,checker,uart_monitor}.vh — reusable Verilog TB infra
+- verify/tests/tb_*.v — Stage 1 Verilog testbenches (8 files)
+- verify/tests/test_mnist_top.py — Stage 2 cocotb testbench
+- verify/tests/mnist_npu_cocotb_wrapper.v, cocotb_filelist.f — Stage 2 TB-side scaffolding
+- verify/scripts/run_tests.sh — Stage 1 runner
+- verify/scripts/run_cocotb_stage2.sh — Stage 2 runner
+- verify/run-000/, verify/run-001/ — versioned run artifacts (logs, .vvp, captured UART text)
+- verify/run-001/xcheck/ — fe-iverilog XCHECK X-hygiene scan artifacts
+- verify/run-001/cocotb_stage2/ — Stage 2 cocotb log + TB copy
+- verify/iterations.log — append-only master log, all stages
+- verify/FINDINGS.md — FINDING-001 full write-up
+- verify/report.txt — this file
+
+REQUIREMENT CLOSURE (spec/verification_plan.md traceability matrix)
+----------------------------------------------------------------------
+All REQ-001..REQ-031 (`must`, 0 orphans per the VP's own construction) now
+have >=1 PASSING VP item, EXCEPT REQ-030, which is PARTIALLY met: the
+`uart_tx` idle-high half is proven (PASS); the `led[11:0]==0` half is
+DISPROVEN for `led[0]` specifically (FINDING-001). Every other REQ's VP
+item(s) closed clean. VP-LUT-001 (non-negotiable per project brief §5):
+PASS, exactly 0/65536 mismatches.
