@@ -1,0 +1,36 @@
+schema_version: "1.0"
+stage: fe-spec
+generated_for: fe-arch
+project_name: "mnist_npu"
+technology: {pdk: fpga_generic, node_nm: null, core_voltage_v: null}   # DEVIATION from sky130 default — see spec.md §2.1
+deviation_note: >
+  Technology is FPGA (Xilinx Artix-7 100T / Nexys A7, eventual target; FPGA bring-up out of scope
+  this stage), not SkyWater Sky130 130 nm ASIC. This is an explicit, documented instruction from
+  the project brief (not a silent default or a guess) — see spec.md §2.1 for the full rationale.
+  fe-arch/fe-rtl must carry `technology.pdk: fpga_generic` forward unchanged and must not
+  substitute Sky130-specific artifacts (cell names, analog black boxes, DFT policy) anywhere.
+constraints: {rtl_language: verilog-2001, dft: none, custom_analog: false}
+artifacts:
+  - {file: spec.md,               present: true}
+  - {file: requirements.yaml,     present: true}
+  - {file: interfaces.yaml,       present: true}
+  - {file: verification_plan.md,  present: true}
+counts:
+  requirements: 30
+  assumptions: 3
+  interfaces: 3
+  clock_domains: 1
+  cdc_paths: 0
+  ip_reuse_candidates: 1
+  verification_items_top: 8
+  verification_items_module: 13
+review_gate:
+  all_requirements_measurable: true
+  all_requirements_traced: true
+  no_orphan_verification_items: true
+  no_contradictions_found: true
+  cdc_enumerated: true    # trivially true: 0 crossings exist in a single-clock-domain design
+blocking_open_issues: []
+unconfirmed_assumptions: [ASM-001, ASM-002, ASM-003]
+assumptions_acknowledged: true   # explicitly acknowledged by this stage (spec.md §11): none can affect
+                                   # bit-exactness; fe-arch may proceed per ARCH-E012 without a human round-trip

@@ -1,0 +1,51 @@
+%% block_diagram.mmd — mnist_npu, single clock domain CD_CORE (100 MHz nominal)
+%% No CDC crossings exist in this design (single domain) — all arrows are intra-domain.
+flowchart TB
+  subgraph CD_CORE["CD_CORE — clk_core, 100 MHz nominal (CLK-001)"]
+    TOP["BLK-001<br/>mnist_npu"]
+    CTRL["BLK-002<br/>ctrl_fsm<br/>(FSM-001)"]
+    MAC["BLK-003<br/>mac_datapath"]
+    LUT["BLK-004<br/>sigmoid_lut<br/>65536x8 ROM"]
+    WROM["BLK-005<br/>weight_rom<br/>25450x16 ROM"]
+    IROM["BLK-006<br/>image_rom<br/>78400x8 ROM"]
+    LROM["BLK-007<br/>label_rom<br/>100x8 ROM"]
+    HRAM["BLK-008<br/>hidden_ram<br/>32x16 RAM"]
+    UTX["BLK-009<br/>uart_tx<br/>(FSM-003)"]
+    LEDC["BLK-010<br/>led_ctrl"]
+    LFMT["BLK-011<br/>uart_line_fmt<br/>(FSM-002)"]
+  end
+
+  TOP --> CTRL
+  TOP --> MAC
+  TOP --> LUT
+  TOP --> WROM
+  TOP --> IROM
+  TOP --> LROM
+  TOP --> HRAM
+  TOP --> UTX
+  TOP --> LEDC
+  TOP --> LFMT
+
+  CTRL -.->|"IFI-001 mac_operands<br/>(enables/selects)"| MAC
+  CTRL -.->|"IFI-002 lut_port"| LUT
+  CTRL -.->|"IFI-003 weight_rom_port"| WROM
+  CTRL -.->|"IFI-004 image_rom_port"| IROM
+  CTRL -.->|"IFI-005 label_rom_port"| LROM
+  CTRL -.->|"IFI-006 hidden_ram_port"| HRAM
+  CTRL -.->|"IFI-008 led_ctrl_port"| LEDC
+  CTRL -.->|"IFI-009 line_fmt_ctrl"| LFMT
+  LFMT -.->|"IFI-007 uart_tx_port<br/>(valid/ready)"| UTX
+
+  MAC -->|mac_z| CTRL
+  LUT -->|lut_data| CTRL
+  WROM -->|wrom_data| MAC
+  IROM -->|irom_data| MAC
+  HRAM -->|hram_rdata| MAC
+  LROM -->|lrom_data| CTRL
+  LFMT -->|lf_done| CTRL
+
+  UTX -->|uart_tx| PADU(("uart_tx<br/>pin"))
+  LEDC -->|"led[11:0]"| PADL(("led[11:0]<br/>pins"))
+
+  classDef pin fill:#eee,stroke:#333,stroke-dasharray: 3 3;
+  class PADU,PADL pin;

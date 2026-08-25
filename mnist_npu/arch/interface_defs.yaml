@@ -1,0 +1,225 @@
+schema_version: "1.0"
+stage: fe-arch
+external_interfaces:      # copied faithfully from spec/interfaces.yaml
+  - id: IF-001
+    name: uart_tx_if
+    protocol: UART
+    clock: clk_core
+    reset: rst_n
+    signals:
+      - {name: uart_tx, dir: output, width: 1, active: high}
+  - id: IF-002
+    name: led_status_if
+    protocol: custom
+    clock: clk_core
+    reset: rst_n
+    signals:
+      - {name: "led[9:0]", dir: output, width: 10, active: high}
+      - {name: "led[10]",  dir: output, width: 1,  active: high}
+      - {name: "led[11]",  dir: output, width: 1,  active: high}
+  - id: IF-003
+    name: sys_if
+    protocol: custom
+    clock: clk_core
+    reset: rst_n
+    signals:
+      - {name: clk,   dir: input, width: 1, active: high}
+      - {name: rst_n, dir: input, width: 1, active: low}
+
+internal_interfaces:
+  - id: IFI-001
+    name: mac_operands
+    from_block: BLK-002   # ctrl_fsm (drives address/select muxing)
+    to_block: BLK-003     # mac_datapath
+    clock: clk_core
+    type: status           # not a valid_ready handshake — ctrl_fsm fully sequences the datapath,
+                            # 1 MAC step per cycle, no backpressure possible (single always-ready consumer)
+    semantics:
+      valid_may_depend_on_ready: false
+      data_stable_while_stalled: true
+      backpressure: false
+    signals:
+      - {name: mac_a,       dir: from_source, width: 16, description: "operand A: pixel or hidden activation, zero-extended"}
+      - {name: mac_b,       dir: from_source, width: 16, description: "operand B: weight, from weight_rom"}
+      - {name: mac_bias_ld, dir: from_source, width: 1,  description: "1 = load acc with bias<<8 this cycle (first step of a unit)"}
+      - {name: mac_bias,    dir: from_source, width: 16, description: "bias value for mac_bias_ld"}
+      - {name: mac_acc_en,  dir: from_source, width: 1,  description: "1 = accumulate mac_a*mac_b into acc this cycle"}
+      - {name: mac_z,       dir: from_sink,    width: 16, description: "registered, saturated z = acc>>8, valid the cycle after the last acc_en step"}
+
+  - id: IFI-002
+    name: lut_port
+    from_block: BLK-002    # ctrl_fsm supplies the address (mac_z, registered)
+    to_block: BLK-004      # sigmoid_lut
+    clock: clk_core
+    type: status
+    semantics: {valid_may_depend_on_ready: false, data_stable_while_stalled: true, backpressure: false}
+    signals:
+      - {name: lut_addr, dir: from_source, width: 16, description: "z, two's-complement bit pattern, registered address"}
+      - {name: lut_data, dir: from_sink,   width: 8,  description: "sigma(z), 1 cycle of registered ROM read latency"}
+
+  - id: IFI-003
+    name: weight_rom_port
+    from_block: BLK-002
+    to_block: BLK-005      # weight_rom
+    clock: clk_core
+    type: status
+    semantics: {valid_may_depend_on_ready: false, data_stable_while_stalled: true, backpressure: false}
+    signals:
+      - {name: wrom_addr, dir: from_source, width: 15, description: "0..25449, see arch.md §7 address map"}
+      - {name: wrom_data, dir: from_sink,   width: 16, description: "registered ROM read"}
+
+  - id: IFI-004
+    name: image_rom_port
+    from_block: BLK-002
+    to_block: BLK-006      # image_rom
+    clock: clk_core
+    type: status
+    semantics: {valid_may_depend_on_ready: false, data_stable_while_stalled: true, backpressure: false}
+    signals:
+      - {name: irom_addr, dir: from_source, width: 17, description: "img_idx*784+i, 0..78399"}
+      - {name: irom_data, dir: from_sink,   width: 8,  description: "registered ROM read, unsigned pixel"}
+
+  - id: IFI-005
+    name: label_rom_port
+    from_block: BLK-002
+    to_block: BLK-007      # label_rom
+    clock: clk_core
+    type: status
+    semantics: {valid_may_depend_on_ready: false, data_stable_while_stalled: true, backpressure: false}
+    signals:
+      - {name: lrom_addr, dir: from_source, width: 7, description: "img_idx, 0..99"}
+      - {name: lrom_data, dir: from_sink,   width: 8, description: "registered ROM read, expected label"}
+
+  - id: IFI-006
+    name: hidden_ram_port
+    from_block: BLK-002
+    to_block: BLK-008      # hidden_ram
+    clock: clk_core
+    type: status            # single R/W port, ctrl_fsm sequences write (layer1) vs read (layer2) phases
+    semantics: {valid_may_depend_on_ready: false, data_stable_while_stalled: true, backpressure: false}
+    signals:
+      - {name: hram_addr,  dir: from_source, width: 5,  description: "hidden unit index, 0..31"}
+      - {name: hram_wdata, dir: from_source, width: 16, description: "h[j], zero-extended sigma 1..255"}
+      - {name: hram_we,    dir: from_source, width: 1,  description: "1 = write hram_wdata this cycle"}
+      - {name: hram_rdata, dir: from_sink,   width: 16, description: "registered read, 1 cycle latency"}
+
+  - id: IFI-007
+    name: uart_tx_port
+    from_block: BLK-011     # uart_line_fmt (NOT ctrl_fsm directly — see IFI-009)
+    to_block: BLK-009       # uart_tx
+    clock: clk_core
+    type: valid_ready        # the one genuine handshake in the design: uart_tx is a real multi-cycle engine
+    semantics:
+      valid_may_depend_on_ready: false
+      data_stable_while_stalled: true
+      backpressure: true
+    signals:
+      - {name: utx_data,  dir: from_source, width: 8, description: "byte to send"}
+      - {name: utx_valid, dir: from_source, width: 1, description: "1-cycle strobe: utx_data is valid, send it"}
+      - {name: utx_ready, dir: from_sink,   width: 1, description: "1 = uart_tx idle, ready to accept a new byte"}
+      - {name: utx_busy,  dir: from_sink,   width: 1, description: "1 = a frame (start+8+stop) is currently shifting out"}
+
+  - id: IFI-009
+    name: line_fmt_ctrl
+    from_block: BLK-002     # ctrl_fsm
+    to_block: BLK-011       # uart_line_fmt
+    clock: clk_core
+    type: status
+    semantics: {valid_may_depend_on_ready: false, data_stable_while_stalled: true, backpressure: false}
+    signals:
+      - {name: lf_start,   dir: from_source, width: 1, description: "1-cycle strobe: begin composing/sending a line"}
+      - {name: lf_pred,    dir: from_source, width: 4, description: "0..9"}
+      - {name: lf_conf,    dir: from_source, width: 7, description: "0..100"}
+      - {name: lf_exp,     dir: from_source, width: 4, description: "0..9, expected label"}
+      - {name: lf_idx,     dir: from_source, width: 7, description: "0..99, image index"}
+      - {name: lf_verdict, dir: from_source, width: 2, description: "0=CORRECT,1=INCORRECT,2=TRASH"}
+      - {name: lf_done,    dir: from_sink,   width: 1, description: "1-cycle strobe: full line accepted by uart_tx (last byte's utx_valid&&utx_ready)"}
+
+  - id: IFI-008
+    name: led_ctrl_port
+    from_block: BLK-002
+    to_block: BLK-010      # led_ctrl
+    clock: clk_core
+    type: status
+    semantics: {valid_may_depend_on_ready: false, data_stable_while_stalled: true, backpressure: false}
+    signals:
+      - {name: lc_pred,    dir: from_source, width: 4, description: "0..9, registered result"}
+      - {name: lc_verdict, dir: from_source, width: 2, description: "0=CORRECT,1=INCORRECT,2=TRASH"}
+      - {name: lc_present, dir: from_source, width: 1, description: "1-cycle strobe: latch lc_pred/lc_verdict into the LED[9:0]/LED[10] output regs"}
+      - {name: lc_busy,    dir: from_source, width: 1, description: "1 while an image is being computed (drives LED[11] blink window, REQ-019)"}
+
+blocks:
+  - id: BLK-001
+    module: mnist_npu
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters: []
+  - id: BLK-002
+    module: ctrl_fsm
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters:
+      - {name: HOLD_CYCLES,  default: 50000000, range: "1..2^32-1"}
+  - id: BLK-003
+    module: mac_datapath
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters: []
+  - id: BLK-004
+    module: sigmoid_lut
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters:
+      - {name: LUT_HEX_FILE, default: "\"rtl/sigmoid_lut.hex\"", range: "n/a (string path)"}
+  - id: BLK-005
+    module: weight_rom
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters:
+      - {name: WEIGHTS_HEX_FILE, default: "\"arch/golden_model/weights.hex\"", range: "n/a (string path)"}
+  - id: BLK-006
+    module: image_rom
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters:
+      - {name: IMAGES_HEX_FILE, default: "\"arch/golden_model/images.hex\"", range: "n/a (string path)"}
+  - id: BLK-007
+    module: label_rom
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters:
+      - {name: LABELS_HEX_FILE, default: "\"arch/golden_model/labels.hex\"", range: "n/a (string path)"}
+  - id: BLK-008
+    module: hidden_ram
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters: []
+  - id: BLK-009
+    module: uart_tx
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters:
+      - {name: CLK_DIV, default: 868, range: "2..2^32-1"}
+  - id: BLK-010
+    module: led_ctrl
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters:
+      - {name: BLINK_CYCLES, default: 5000000, range: "1..2^32-1"}
+  - id: BLK-011
+    module: uart_line_fmt
+    clock_domain: CD_CORE
+    reset: rst_n
+    source: custom
+    parameters:
+      - {name: MAX_LINE_LEN, default: 80, range: "72..255 (must cover the longest formatted line, see arch.md §6)"}

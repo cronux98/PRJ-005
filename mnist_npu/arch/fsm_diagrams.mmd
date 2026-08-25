@@ -1,0 +1,41 @@
+%% FSM-001 : ctrl_fsm  (binary encoding, 10 states, reset state = ST_IMG_START)
+%% Full transition table with conditions is in arch.md §6.1 — this diagram is the human-readable view.
+stateDiagram-v2
+  [*] --> ST_IMG_START
+  ST_IMG_START --> ST_L1_MAC : 1'b1
+  ST_L1_MAC --> ST_L1_MAC : i_cnt != 783
+  ST_L1_MAC --> ST_L1_ACT  : i_cnt == 783
+  ST_L1_ACT --> ST_L1_WB   : 1'b1
+  ST_L1_WB  --> ST_L1_MAC  : j_cnt != 31
+  ST_L1_WB  --> ST_L2_MAC  : j_cnt == 31
+  ST_L2_MAC --> ST_L2_MAC  : j_cnt != 31
+  ST_L2_MAC --> ST_L2_ACT  : j_cnt == 31
+  ST_L2_ACT --> ST_L2_WB   : 1'b1
+  ST_L2_WB  --> ST_L2_MAC  : c_cnt != 9
+  ST_L2_WB  --> ST_RESULT  : c_cnt == 9
+  ST_RESULT --> ST_PRESENT : 1'b1
+  ST_PRESENT --> ST_PRESENT : !lf_done
+  ST_PRESENT --> ST_HOLD    : lf_done
+  ST_HOLD --> ST_HOLD      : hold_cnt != HOLD_CYCLES-1
+  ST_HOLD --> ST_IMG_START : hold_cnt == HOLD_CYCLES-1
+
+%% FSM-002 : uart_line_fmt  (binary encoding, 3 states, reset state = ST_LF_IDLE)
+stateDiagram-v2
+  [*] --> ST_LF_IDLE
+  ST_LF_IDLE --> ST_LF_IDLE    : !lf_start
+  ST_LF_IDLE --> ST_LF_COMPOSE : lf_start
+  ST_LF_COMPOSE --> ST_LF_SEND : 1'b1
+  ST_LF_SEND --> ST_LF_SEND    : !(byte_idx == line_len-1 && utx_ready)
+  ST_LF_SEND --> ST_LF_IDLE    : byte_idx == line_len-1 && utx_ready
+
+%% FSM-003 : uart_tx  (binary encoding, 4 states, reset state = ST_UTX_IDLE)
+stateDiagram-v2
+  [*] --> ST_UTX_IDLE
+  ST_UTX_IDLE --> ST_UTX_IDLE  : !utx_valid
+  ST_UTX_IDLE --> ST_UTX_START : utx_valid
+  ST_UTX_START --> ST_UTX_START : !baud_tick
+  ST_UTX_START --> ST_UTX_DATA  : baud_tick
+  ST_UTX_DATA --> ST_UTX_DATA  : !(baud_tick && bit_cnt==7)
+  ST_UTX_DATA --> ST_UTX_STOP  : baud_tick && bit_cnt==7
+  ST_UTX_STOP --> ST_UTX_STOP  : !baud_tick
+  ST_UTX_STOP --> ST_UTX_IDLE  : baud_tick

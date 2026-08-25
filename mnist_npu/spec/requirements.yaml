@@ -1,0 +1,383 @@
+schema_version: "1.0"
+stage: fe-spec
+project:
+  name: "mnist_npu"
+  technology: fpga_generic          # DEVIATION from fe-spec default (sky130); see spec.md §2 "Technology Deviation"
+  node_nm: null
+  fpga_target: "Xilinx Artix-7 100T (Nexys A7) — eventual target, implementation out of scope this stage"
+  rtl_language: verilog-2001
+  dft: none
+
+requirements:
+  # ---- Functional: network / arithmetic contract (bit-exact to golden) ----
+  - id: REQ-001
+    title: "MLP topology, forward-pass only"
+    category: functional
+    description: "The design shall implement a fully-connected 784-32-10 multilayer perceptron performing inference (forward pass) only. No training, backpropagation, weight update, or freeze/unfreeze logic shall be implemented in RTL."
+    priority: must
+    measurable_target: "0 training/backprop/weight-update constructs present in RTL; layer sizes exactly 784, 32, 10"
+    source: user_brief
+    rationale: "Inference-only accelerator per project brief §4"
+    verification: {method: simulation, items: [VP-TOP-002, VP-CTRL-001]}
+    status: agreed
+
+  - id: REQ-002
+    title: "Q8.8 signed fixed-point arithmetic, bit-exact to golden"
+    category: functional
+    description: "All datapath arithmetic shall use 16-bit signed Q8.8 fixed-point representation and shall reproduce arch/golden_model/golden_ref_model.c bit-exactly for every one of the 100 golden vector images (and, by construction, the full 10,000-image golden run)."
+    priority: must
+    measurable_target: "0 mismatches vs expected.hex across the 100-image vector set"
+    source: user_brief
+    rationale: "Golden model is the frozen bit-exact contract (arch/golden_model/README.md)"
+    verification: {method: simulation, items: [VP-TOP-002]}
+    status: agreed
+
+  - id: REQ-003
+    title: "Pixel input encoding"
+    category: functional
+    description: "Each input pixel byte p (0..255, unsigned) shall be interpreted directly as the Q8.8 value p (i.e. real value p/256), zero-extended to a 16-bit operand for multiplication. No scaling or offset is applied."
+    priority: must
+    measurable_target: "img_operand[15:0] = {8'h00, pixel_byte[7:0]}"
+    source: golden_model
+    rationale: "arch/golden_model/README.md fixed-point contract, line 1"
+    verification: {method: simulation, items: [VP-MAC-001]}
+    status: agreed
+
+  - id: REQ-004
+    title: "Layer-1 MAC accumulation"
+    category: functional
+    description: "For each hidden unit j (0..31), the design shall compute acc = (b1[j] << 8) + sum over i=0..783 of img[i] * W1[i*32+j], with the bias pre-shifted to Q16.16 alignment and the sum accumulated in a signed accumulator with no intermediate truncation, saturation, or rounding before the final right-shift of REQ-005."
+    priority: must
+    measurable_target: "acc computed over full 784-term sum + bias term, no intermediate clipping"
+    source: golden_model
+    rationale: "golden_ref_model.c forward(), layer 1 loop"
+    verification: {method: simulation, items: [VP-MAC-001, VP-MAC-002]}
+    status: agreed
+
+  - id: REQ-005
+    title: "Pre-activation shift and int16 saturation"
+    category: functional
+    description: "z = acc >> 8 (arithmetic, floor-toward-negative-infinity shift). z shall then be saturated (clamped) to the signed 16-bit range [-32768, 32767] before being used as the sigmoid LUT address."
+    priority: must
+    measurable_target: "z == clamp(acc >> 8, -32768, 32767) for all reachable acc values"
+    source: golden_model
+    rationale: "golden_ref_model.c forward(), z computation and clamp"
+    verification: {method: simulation, items: [VP-MAC-003]}
+    status: agreed
+
+  - id: REQ-006
+    title: "Sigmoid activation via 65536x8 LUT, bit-exact"
+    category: functional
+    description: "Activation shall be computed by a combinational/single-cycle lookup into a 65536-entry x 8-bit ROM, addressed by the full 16-bit signed z from REQ-005 (address = z as an unsigned 16-bit index, i.e. two's-complement bit pattern of z). LUT data at address z shall equal sigma(z) = 128 + trunc(128*z / (256+|z|)) computed with C99 truncate-toward-zero division, for ALL 65536 possible z values, with zero approximation or clamping shortcuts. No divider circuit shall be present in the RTL activation path."
+    priority: must
+    measurable_target: "LUT[z] == golden sigmoid(z) for all 65536 z in [-32768,32767]; verified 65536/65536 by tools/check_lut.py"
+    source: user_brief
+    rationale: "Project brief §5 — non-negotiable bit-exactness requirement"
+    verification: {method: simulation, items: [VP-LUT-001, VP-LUT-002]}
+    status: agreed
+
+  - id: REQ-007
+    title: "Hidden activation storage"
+    category: functional
+    description: "The 32 hidden-layer activations h[0..31] (each in range 1..255, unsigned) shall be stored in a 32-entry x 16-bit RAM (values zero-extended into the 16-bit word) between layer-1 completion and layer-2 consumption."
+    priority: must
+    measurable_target: "RAM depth = 32, width = 16 bits"
+    source: user_brief
+    rationale: "Project brief §4 datapath requirement"
+    verification: {method: simulation, items: [VP-TOP-002]}
+    status: agreed
+
+  - id: REQ-008
+    title: "Layer-2 MAC accumulation"
+    category: functional
+    description: "For each output c (0..9), the design shall compute acc = (b2[c] << 8) + sum over j=0..31 of h[j] * W2[j*10+c], using the same accumulator, no-truncation, right-shift and saturation rules as REQ-004/REQ-005, followed by the REQ-006 LUT to produce out[c] (sigma, range 1..255)."
+    priority: must
+    measurable_target: "out[c] bit-exact to golden for all 10 outputs, all 100 vector images"
+    source: golden_model
+    rationale: "golden_ref_model.c forward(), layer 2 loop"
+    verification: {method: simulation, items: [VP-MAC-001, VP-TOP-002]}
+    status: agreed
+
+  - id: REQ-009
+    title: "Argmax with lowest-index tie-break"
+    category: functional
+    description: "pred = argmax over out[0..9]; if two or more outputs tie for the maximum value, the LOWEST index shall win (strict greater-than comparison scanning c=1..9 against the running best, matching golden_ref_model.c)."
+    priority: must
+    measurable_target: "pred matches golden for all 100 vector images, including any tie cases present in the set"
+    source: golden_model
+    rationale: "golden_ref_model.c: `if (out[i] > out[best]) best = i;`"
+    verification: {method: simulation, items: [VP-TOP-002]}
+    status: agreed
+
+  - id: REQ-010
+    title: "Confidence computation"
+    category: functional
+    description: "confidence = (out[pred] * 100) >> 8, an unsigned value in range 0..100."
+    priority: must
+    measurable_target: "confidence bit-exact to golden for all 100 vector images"
+    source: golden_model
+    rationale: "golden_ref_model.c: `conf = (out[best]*100) >> 8;`"
+    verification: {method: simulation, items: [VP-TOP-002]}
+    status: agreed
+
+  - id: REQ-011
+    title: "Verdict classification"
+    category: functional
+    description: "verdict = 2 (TRASH) if confidence < 50; else verdict = 0 (CORRECT) if pred == expected_label; else verdict = 1 (INCORRECT). expected_label is read from the label ROM (REQ-014) for the current image index."
+    priority: must
+    measurable_target: "verdict bit-exact to expected.hex for all 100 vector images"
+    source: user_brief
+    rationale: "Project brief §4 verdict definition, matches golden_ref_model.c"
+    verification: {method: simulation, items: [VP-TOP-002]}
+    status: agreed
+
+  # ---- Datapath sizing (derived, numeric) ----
+  - id: REQ-028
+    title: "MAC accumulator width bound"
+    category: functional
+    description: "The MAC accumulator register shall be at least 40 bits wide, signed, sufficient to hold the layer-1 worst-case magnitude bound |acc| <= 255*32768*784 + 32767*256 ~= 6.559e9 (~33.3 bits of magnitude + sign) without overflow or intermediate truncation, matching the golden model's 64-bit (long) accumulation semantics before the REQ-005 shift/saturate step. (Layer-2 worst case ~2.77e8 is far smaller and uses the same accumulator.)"
+    priority: must
+    measurable_target: "accumulator_width_bits >= 40"
+    source: derived
+    rationale: "Arithmetic bound computed from golden model's value ranges (see rationale field of this REQ); prevents silent overflow that would break REQ-002 bit-exactness"
+    verification: {method: analysis, items: [VP-MAC-002]}
+    status: agreed
+
+  - id: REQ-029
+    title: "Single shared MAC datapath"
+    category: functional
+    description: "The design shall implement exactly one multiply-accumulate datapath (one 16-bit x 16-bit signed multiplier producing a 32-bit signed product, feeding one shared accumulator), reused sequentially across all 784 (layer 1) or 32 (layer 2) MAC steps and across all hidden/output units. No per-unit or per-layer duplication of the multiplier is permitted."
+    priority: must
+    measurable_target: "exactly 1 multiplier instance in the synthesised design"
+    source: user_brief
+    rationale: "Project brief §4: 'Single MAC datapath (16x16 -> 32-bit multiply-accumulate), sequential over the 784 inputs and 32 hidden units'"
+    verification: {method: inspection, items: [VP-CTRL-001]}
+    status: agreed
+
+  # ---- Memory / interfaces ----
+  - id: REQ-012
+    title: "Weight ROM, memory-initialised"
+    category: interface
+    description: "A 25,450 x 16-bit signed ROM shall be initialised via $readmemh from the frozen file arch/golden_model/weights.hex, laid out as W1 (784x32, row-major, index = i*32+j) | b1 (32) | W2 (32x10, row-major, index = j*10+c) | b2 (10). No host interface, bootrom, or firmware loads this memory; initialisation is simulation/synthesis $readmemh only."
+    priority: must
+    measurable_target: "ROM depth 25450, width 16 bits; contents identical to weights.hex"
+    source: user_brief
+    rationale: "Project brief §4, §3 golden package layout"
+    verification: {method: simulation, items: [VP-ROM-001]}
+    status: agreed
+
+  - id: REQ-013
+    title: "Image ROM, memory-initialised"
+    category: interface
+    description: "A 78,400 x 8-bit unsigned ROM (100 images x 784 pixels) shall be initialised via $readmemh from the frozen file arch/golden_model/images.hex."
+    priority: must
+    measurable_target: "ROM depth 78400, width 8 bits; contents identical to images.hex"
+    source: user_brief
+    rationale: "Project brief §3, §4"
+    verification: {method: simulation, items: [VP-ROM-001]}
+    status: agreed
+
+  - id: REQ-014
+    title: "Label ROM, memory-initialised"
+    category: interface
+    description: "A 100 x 8-bit unsigned ROM shall be initialised via $readmemh from the frozen file arch/golden_model/labels.hex, providing the expected label for each image index used in REQ-011."
+    priority: must
+    measurable_target: "ROM depth 100, width 8 bits; contents identical to labels.hex"
+    source: user_brief
+    rationale: "Project brief §3, §4"
+    verification: {method: simulation, items: [VP-ROM-001]}
+    status: agreed
+
+  - id: REQ-015
+    title: "Free-running inference loop"
+    category: functional
+    description: "After reset release, the design shall infer image index 0, then 1, ... then 99, then wrap back to image index 0, repeating forever with no external start/stop control and no host interface. There shall be no CSR, APB, or register-mapped control/status block of any kind."
+    priority: must
+    measurable_target: "image index sequence == (0,1,...,99,0,1,...) indefinitely; 0 host-interface signals in top-level ports"
+    source: user_brief
+    rationale: "Project brief §4"
+    verification: {method: simulation, items: [VP-TOP-003]}
+    status: agreed
+
+  # ---- Pacing / timing parameters ----
+  - id: REQ-016
+    title: "HOLD_CYCLES pacing parameter"
+    category: performance
+    description: "A parameter HOLD_CYCLES shall control the number of clock cycles the completed result (LED[11:0] value and the just-transmitted UART line) is held stable after an image's inference completes and before the next image's inference begins. Default HOLD_CYCLES = 50,000,000 (~0.5 s at 100 MHz); simulation builds shall override HOLD_CYCLES to a small value (4-16) via Verilog parameter override, with no RTL source edits."
+    priority: must
+    measurable_target: "HOLD_CYCLES is a module parameter with documented default and simulation override; result held stable for exactly HOLD_CYCLES cycles"
+    source: user_brief
+    rationale: "Project brief §6"
+    verification: {method: simulation, items: [VP-TOP-007]}
+    status: agreed
+
+  - id: REQ-019
+    title: "LED[11] busy-blink indicator"
+    category: functional
+    description: "LED[11] shall toggle (blink) at a rate governed by parameter BLINK_CYCLES from the moment an image's inference computation begins until the result (LED[9:0]/LED[10]) is presented; LED[11] shall then hold at a constant (non-blinking) value for the remainder of the HOLD_CYCLES window, i.e. for as long as the result is displayed."
+    priority: must
+    measurable_target: "LED[11] toggles at the BLINK_CYCLES half-period only during the busy/compute window; constant during the hold window"
+    source: user_brief
+    rationale: "Project brief §4, §6"
+    verification: {method: simulation, items: [VP-TOP-006, VP-LED-003]}
+    status: agreed
+
+  - id: REQ-020
+    title: "BLINK_CYCLES parameter"
+    category: performance
+    description: "BLINK_CYCLES shall be a module parameter setting the half-period (in clock cycles) of the LED[11] toggle in REQ-019. Default and simulation-override values shall be documented in arch.md and RTL headers, with the simulation value small enough to observe multiple toggles within one compute window during a fast simulation."
+    priority: must
+    measurable_target: "BLINK_CYCLES is a module parameter with documented default and simulation override"
+    source: user_brief
+    rationale: "Project brief §6"
+    verification: {method: simulation, items: [VP-LED-003]}
+    status: agreed
+
+  # ---- LED outputs ----
+  - id: REQ-017
+    title: "LED[9:0] one-hot predicted digit, trash-off"
+    category: functional
+    description: "When verdict != TRASH (verdict 0 or 1), LED[9:0] shall be one-hot with bit `pred` set and all other bits clear. When verdict == TRASH (verdict 2), ALL of LED[9:0] shall be OFF (0)."
+    priority: must
+    measurable_target: "LED[9:0] pattern matches expected pred/verdict for all 100 vector images; exactly one bit set when verdict != 2, zero bits set when verdict == 2"
+    source: user_brief
+    rationale: "Project brief §4"
+    verification: {method: simulation, items: [VP-TOP-005, VP-LED-001]}
+    status: agreed
+
+  - id: REQ-018
+    title: "LED[10] fail/trash indicator"
+    category: functional
+    description: "LED[10] shall be ON (1) when verdict != 0 (i.e. INCORRECT or TRASH) and OFF (0) when verdict == 0 (CORRECT)."
+    priority: must
+    measurable_target: "LED[10] == (verdict != 0) for all 100 vector images"
+    source: user_brief
+    rationale: "Project brief §4"
+    verification: {method: simulation, items: [VP-TOP-005, VP-LED-002]}
+    status: agreed
+
+  - id: REQ-030
+    title: "Reset output state"
+    category: reset
+    description: "On reset (rst_n == 0), LED[11:0] shall all be 0 and uart_tx shall be held at idle-mark (logic 1). Immediately upon reset release, the design shall begin computing image index 0 and LED[11] shall begin blinking per REQ-019; LED[9:0]/LED[10] shall remain 0 until the first result is presented."
+    priority: must
+    measurable_target: "led[11:0]==12'h000 and uart_tx==1'b1 while rst_n==0; first inference targets image index 0"
+    source: derived
+    rationale: "Reset-value completeness required by fe-spec review gate; not explicitly numbered in the brief but implied by 'free-running from reset'"
+    verification: {method: simulation, items: [VP-TOP-001]}
+    status: agreed
+
+  # ---- UART ----
+  - id: REQ-021
+    title: "UART TX 115200 8N1"
+    category: interface
+    description: "The design shall include a standard UART transmitter: 115200 baud, 8 data bits, no parity, 1 stop bit (8N1), with a parameterized clock divider CLK_DIV. UART RX is NOT required/implemented. uart_tx idles high (mark) between frames."
+    priority: must
+    measurable_target: "bit period == CLK_DIV clk_core cycles; frame = 1 start(0) + 8 data(LSB first) + 1 stop(1)"
+    source: user_brief
+    rationale: "Project brief §4, §7"
+    verification: {method: simulation, items: [VP-UART-001, VP-UART-002]}
+    status: agreed
+
+  - id: REQ-022
+    title: "UART line format, exact bytes"
+    category: interface
+    description: |
+      For each image, after the result is computed the design shall transmit exactly one ASCII line over uart_tx, terminated by a single 0x0A (LF only, no CR), in one of these three forms (IMG index zero-padded to 3 digits, all numbers ASCII decimal):
+        verdict 0: "IMG %03u: This is number %u | confidence %u%% | expected %u | CORRECT\n"
+        verdict 1: "IMG %03u: This is number %u | confidence %u%% | expected %u | INCORRECT\n"
+        verdict 2: "IMG %03u: NOT A NUMBER | confidence %u%% | expected %u | TRASH\n"
+    priority: must
+    measurable_target: "byte-for-byte match against the golden line format for all 100 vector images"
+    source: user_brief
+    rationale: "Project brief §7 (exact bytes)"
+    verification: {method: simulation, items: [VP-UART-001]}
+    status: agreed
+
+  # ---- Clock / reset / language / synthesis ----
+  - id: REQ-023
+    title: "Single clock domain, synchronous reset"
+    category: clocking
+    description: "The design shall use exactly one clock domain (CD_CORE, nominal 100 MHz) and one reset signal rst_n, active-low, fully SYNCHRONOUS (registered on posedge clk; no asynchronous reset input to any flop). This deviates from the fe-spec default reset template (async-assert/sync-deassert) by explicit project requirement."
+    priority: must
+    measurable_target: "1 clock domain; 0 always@(posedge clk or negedge rst_n) constructs in RTL; reset qualifies via always@(posedge clk) if(!rst_n) ... "
+    source: user_brief
+    rationale: "Project brief §4: 'Single clock domain, synchronous active-low reset (no async reset)'"
+    verification: {method: inspection, items: [VP-TOP-001]}
+    status: agreed
+
+  - id: REQ-024
+    title: "Pure Verilog-2001/2005 coding discipline"
+    category: compliance
+    description: "RTL shall be pure Verilog-2001/2005 (IEEE 1364): no SystemVerilog constructs; no externally-sourced IP; no module-scope `integer` shared across two or more always blocks; no inferred latches (every always@* assigns a default to every LHS; every case has a default)."
+    priority: must
+    measurable_target: "0 forbidden-construct matches on grep sweep; 0 latch-inferring always blocks"
+    source: user_brief
+    rationale: "Project brief §4"
+    verification: {method: inspection, items: [VP-CTRL-002]}
+    status: agreed
+
+  - id: REQ-025
+    title: "FPGA-synthesizable memories and constructs"
+    category: compliance
+    description: "All ROMs/RAMs shall be described so that a Xilinx synthesis tool infers BRAM (weight ROM, image ROM) or distributed/block RAM (label ROM, hidden-activation RAM, sigmoid LUT) — using $readmemh-initialised `reg` arrays with registered, statically-bounded addressing, no dynamic multi-dimensional indexing that would force full-array replication. The eventual target is a Xilinx Artix-7 100T (Nexys A7); FPGA implementation (bitstream, timing closure, pin constraints) is explicitly OUT OF SCOPE for this stage — the design need only be cleanly synthesizable."
+    priority: must
+    measurable_target: "every memory array is a single reg[..:0] array indexed by a registered address; no unbounded dynamic index"
+    source: user_brief
+    rationale: "Project brief §4"
+    verification: {method: inspection, items: [VP-CTRL-002]}
+    status: agreed
+
+  - id: REQ-026
+    title: "Simulation-speed requirement"
+    category: performance
+    description: "With HOLD_CYCLES and BLINK_CYCLES set to their tiny simulation-override values, a full 100-image inference loop (images 0..99 once) shall complete in a bounded, small number of simulated clock cycles suitable for an iverilog regression run completing in well under one minute of wall-clock time on typical CI/dev hardware."
+    priority: must
+    measurable_target: "documented cycle-count estimate in arch.md; no unbounded or free-running-forever testbench required to observe all 100 images"
+    source: user_brief
+    rationale: "Project brief §6"
+    verification: {method: simulation, items: [VP-TOP-008]}
+    status: agreed
+
+  - id: REQ-031
+    title: "UART idle/mark state"
+    category: interface
+    description: "uart_tx shall idle at logic 1 (mark) whenever no frame is being transmitted, including during reset and during the HOLD_CYCLES window between transmissions."
+    priority: must
+    measurable_target: "uart_tx == 1'b1 outside of active frame transmission"
+    source: standard
+    rationale: "Standard UART idle convention, implied by 8N1 requirement REQ-021"
+    verification: {method: simulation, items: [VP-UART-002]}
+    status: agreed
+
+assumptions:
+  - id: ASM-001
+    statement: "Minimum reset assert width is 2 clk_core cycles (rst_n held low for >= 2 rising edges before release is considered a valid reset)."
+    basis: "No value given by the brief for a synchronous single-domain design; 2 cycles is the minimum needed for the synchronous FSM/registers to settle to their reset values before rst_n release is sampled."
+    impact: "Sets the testbench's minimum reset-hold time in VP-TOP-001; has no effect on the bit-exact datapath contract."
+    requires_confirmation: true
+
+  - id: ASM-002
+    statement: "Core clock frequency for the HOLD_CYCLES/BLINK_CYCLES 'default' values is exactly 100 MHz (10.000 ns period), consistent with the '~0.5 s at 100 MHz = ~50M cycles' guidance in the brief and the '100 MHz nominal' SDC instruction."
+    basis: "Brief states approximate figures ('~0.5 s at 100 MHz = ~50M cycles') rather than an exact clock number; 100 MHz is taken as the exact nominal target."
+    impact: "HOLD_CYCLES default fixed at 50,000,000; UART CLK_DIV derived as round(100e6/115200) = 868."
+    requires_confirmation: true
+
+  - id: ASM-003
+    statement: "Default BLINK_CYCLES (LED[11] toggle half-period) = 5,000,000 cycles (~50 ms half-period, ~10 Hz visible blink at 100 MHz)."
+    basis: "Brief requires the period to be parameterized but states no default value."
+    impact: "Sets the default (non-simulation) LED[11] blink rate; purely cosmetic, does not affect bit-exactness or any pass/fail datapath check."
+    requires_confirmation: true
+
+ip_reuse:
+  - id: IPR-001
+    block: uart_tx
+    decision: custom
+    repo: null
+    commit: null
+    license: null
+    status: rejected
+    search_command: 'gh search repos "verilog uart tx 115200 8n1" --limit 20'
+    notes: "Trivial, fully-specified single-purpose transmitter (parameterized divider, no RX) with an exact byte-format contract (REQ-021/022) that must be bit-exact to the golden model; implementing custom keeps the exact framing/timing auditable against REQ-022 without adapting a third-party module's assumptions. No network search was executed in this environment (sandboxed); custom implementation is the documented fallback per fe-spec §5/§10 anti-hallucination rule."
+
+open_issues: []

@@ -1,0 +1,65 @@
+schema_version: "1.0"
+stage: fe-rtl
+project_name: "mnist_npu"
+source_arch: {manifest: arch/arch_manifest.yaml, verified: true}
+technology: {pdk: fpga_generic, node_nm: null, stdcell_lib: null}
+technology_deviation: >
+  FPGA target (Xilinx Artix-7 100T / Nexys A7), not Sky130 — carried forward unchanged from
+  arch_manifest.yaml / spec_manifest.yaml. See spec/spec.md §2.1, arch/arch.md §2.1.
+language: verilog-2005
+dft: none
+
+determinism:
+  golden_package_commit: "512e3ca9d63b571494dc693b2735f5ed5f157bcd"   # mnist_npu: golden model first
+  golden_package_files:
+    - arch/golden_model/golden_ref_model.c
+    - arch/golden_model/weights.hex
+    - arch/golden_model/images.hex
+    - arch/golden_model/labels.hex
+    - arch/golden_model/expected.hex
+    - arch/golden_model/expected_outputs.txt
+  golden_reproduced_this_stage: true    # gcc + ./gm re-run, byte-identical to committed files (git status clean)
+  sigmoid_lut_generator: tools/gen_sigmoid_lut.py     # deterministic, no float, fixed C99-trunc-toward-zero integer math
+  sigmoid_lut_checker: tools/check_lut.py             # PASS, 0/65536 mismatches (see WORKLOG.md)
+  sigmoid_lut_hex: rtl/sigmoid_lut.hex                # committed, reproducible by re-running the generator
+
+modules:
+  - {block: BLK-001, module: mnist_npu,      file: rtl/mnist_npu.v,      source: custom, clock: clk_core, reset: rst_n, traces: [all REQs], status: complete}
+  - {block: BLK-002, module: ctrl_fsm,       file: rtl/ctrl_fsm.v,       source: custom, clock: clk_core, reset: rst_n, traces: [REQ-001, REQ-004, REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-015, REQ-016, REQ-019, REQ-028, REQ-029], status: complete}
+  - {block: BLK-003, module: mac_datapath,   file: rtl/mac_datapath.v,   source: custom, clock: clk_core, reset: rst_n, traces: [REQ-002, REQ-003, REQ-004, REQ-005, REQ-008, REQ-028, REQ-029], status: complete}
+  - {block: BLK-004, module: sigmoid_lut,    file: rtl/sigmoid_lut.v,    source: custom, clock: clk_core, reset: rst_n, traces: [REQ-006], status: complete}
+  - {block: BLK-005, module: weight_rom,     file: rtl/weight_rom.v,     source: custom, clock: clk_core, reset: rst_n, traces: [REQ-012], status: complete}
+  - {block: BLK-006, module: image_rom,      file: rtl/image_rom.v,      source: custom, clock: clk_core, reset: rst_n, traces: [REQ-013], status: complete}
+  - {block: BLK-007, module: label_rom,      file: rtl/label_rom.v,      source: custom, clock: clk_core, reset: rst_n, traces: [REQ-014], status: complete}
+  - {block: BLK-008, module: hidden_ram,     file: rtl/hidden_ram.v,     source: custom, clock: clk_core, reset: rst_n, traces: [REQ-007], status: complete}
+  - {block: BLK-009, module: uart_tx,        file: rtl/uart_tx.v,        source: custom, clock: clk_core, reset: rst_n, traces: [REQ-021, REQ-031], status: complete}
+  - {block: BLK-010, module: led_ctrl,       file: rtl/led_ctrl.v,       source: custom, clock: clk_core, reset: rst_n, traces: [REQ-017, REQ-018, REQ-019, REQ-020, REQ-030], status: complete}
+  - {block: BLK-011, module: uart_line_fmt,  file: rtl/uart_line_fmt.v,  source: custom, clock: clk_core, reset: rst_n, traces: [REQ-021, REQ-022], status: complete}
+
+cdc_implementations: []   # single clock domain, 0 CDC paths — cdc_plan.md
+
+sdc: {file: sdc/sdc_spec.json, consumer: fe-opensta, clocks: 1, generated_clocks: 0,
+      false_paths: 0, multicycle_paths: 0, async_groups: 0}
+
+filelist: {file: filelist.f, includes: [rtl], excludes: [rtl/blackbox]}   # rtl/blackbox/ does not exist — no analog macros in this design
+
+testbenches: []   # none written — verification is a later stage (fe-iverilog/fe-cocotb), project brief §8
+
+tools_executed: "iverilog -g2005 -s mnist_npu -o /tmp/mnist_check.vvp -f filelist.f (compile-only sanity check, per project brief §8); tools/gen_sigmoid_lut.py and tools/check_lut.py (deterministic artifact generation + verification, explicitly permitted by the task); gcc+./gm golden reproduce (permitted, read-only re-run of the frozen model)"
+
+review_gate:
+  all_modules_present: true
+  no_systemverilog: true
+  no_dft: true
+  no_inferred_latches: true          # every always@* has a default assignment to every LHS; every case has default
+  all_flops_reset_or_exempt: true    # every flop has a SYNCHRONOUS reset value (rtl_coding_guidelines.md §3); mac_z/utx_valid/utx_data/lrom_addr/mac_b/mac_bias are combinational (need none)
+  all_cdc_implemented: true          # vacuously true — 0 CDC paths exist
+  sdc_complete: true
+  iverilog_compile_clean: true       # iverilog -g2005 -s mnist_npu -f filelist.f: exit 0, 0 warnings (even -Wall)
+  sigmoid_lut_check_pass: true       # tools/check_lut.py: PASS, 0/65536 mismatches
+
+user_next_steps:
+  - "verilator --lint-only -Wall $(cat filelist.f)"
+  - "A later fe-iverilog/fe-cocotb stage writes tb/ against spec/verification_plan.md's VP-IDs"
+  - "python3 <fe-opensta>/scripts/gen_sdc.py sdc/sdc_spec.json sdc/mnist_npu.sdc && bash <fe-opensta>/scripts/qa_sdc.sh mnist_npu <netlist> sdc/mnist_npu.sdc"
+  - "fe-yosys with filelist.f, targeting Artix-7 100T (Nexys A7); FPGA bring-up is explicitly out of scope for fe-spec/fe-arch/fe-rtl"

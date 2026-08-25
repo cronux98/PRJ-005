@@ -1,0 +1,11 @@
+rtl/weight_rom.v
+rtl/image_rom.v
+rtl/label_rom.v
+rtl/hidden_ram.v
+rtl/sigmoid_lut.v
+rtl/mac_datapath.v
+rtl/uart_tx.v
+rtl/uart_line_fmt.v
+rtl/led_ctrl.v
+rtl/ctrl_fsm.v
+rtl/mnist_npu.v
