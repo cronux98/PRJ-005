@@ -53,7 +53,12 @@
 #define VEC_LABEL0  0x10013240UL     // labels at vec_rom +0x13240 (arch.md §7.3)
 #define SRAM_BASE   0x00010000UL
 #define SRAM_TEST   0x00010100UL     // test area, clear of the results table
-#define BOOTROM0    0x00000000UL
+// bootrom write-ignore probe target. MUST be non-zero: address 0x0 is a C NULL
+// pointer constant, so GCC -Os treats the volatile write as UB and folds it +
+// the readback into `ebreak` (traps before POST completes). Word 1 (0x4, the
+// jal ra,main word) is inside the 4 KB bootrom window — write still hardware-
+// ignored (REQ-008), readback semantics identical. [FIX 2026-08-26, P4 co-sim]
+#define BOOTROM0    0x00000004UL
 #define UNMAPPED    0x80000000UL
 
 // Results scratch table (SRAM, fixed addresses — not .bss)
@@ -213,7 +218,7 @@ static int test_cnn(void)
 static int test_bus(void)
 {
     if (*(vu32 *)UNMAPPED != 0UL) return 1;  // unmapped -> read 0
-    u32 w1 = *(vu32 *)BOOTROM0;              // first instruction word
+    u32 w1 = *(vu32 *)BOOTROM0;              // bootrom word 1 (jal ra,main)
     *(vu32 *)BOOTROM0 = 0xDEADBEEFUL;        // ignored write (no store)
     u32 w2 = *(vu32 *)BOOTROM0;
     if (w1 != w2) return 1;
