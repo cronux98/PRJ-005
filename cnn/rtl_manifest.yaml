@@ -1,0 +1,72 @@
+schema_version: "1.0"
+stage: fe-rtl
+project_name: "cnn"
+source_arch: {manifest: arch/arch_manifest.yaml, verified: true}
+technology: {pdk: fpga_generic, node_nm: null, stdcell_lib: null}
+technology_deviation: >
+  FPGA target (Xilinx Artix-7 100T / Nexys A7), not Sky130 — carried forward unchanged from
+  arch_manifest.yaml / spec_manifest.yaml. See spec/spec.md §2.1, arch/arch.md §2.1. Identical
+  deviation to sibling project v1 mnist_npu.
+language: verilog-2005
+dft: none
+
+determinism:
+  golden_package_commit: "e7569dbd389150a59c39832bf27bd1107998a6d3"   # "cnn: golden-first baseline — CNN trainer + bit-exact contract (96.35% integer)"
+  golden_package_files:
+    - arch/golden_model/golden_ref_model.c
+    - arch/golden_model/weights.hex
+    - arch/golden_model/images.hex
+    - arch/golden_model/labels.hex
+    - arch/golden_model/expected.hex
+    - arch/golden_model/expected_outputs.txt
+  golden_reproduced_this_stage: true    # gcc + ./gm re-run, byte-identical to committed files (git status clean)
+  sigmoid_lut_reused_from: "mnist_npu/rtl/sigmoid_lut.hex"   # v1's generated LUT table, contents unchanged (REQ-022)
+  sigmoid_lut_hex: rtl/sigmoid_lut.hex                       # committed copy, byte-identical to v1's
+
+reused_from_v1:   # verbatim byte-for-byte copies, per task instruction — diffed identical at copy time
+  - {file: rtl/uart_tx.v,        source: mnist_npu/rtl/uart_tx.v}
+  - {file: rtl/uart_line_fmt.v,  source: mnist_npu/rtl/uart_line_fmt.v}
+  - {file: rtl/led_ctrl.v,       source: mnist_npu/rtl/led_ctrl.v}
+  - {file: rtl/sigmoid_lut.v,    source: mnist_npu/rtl/sigmoid_lut.v}
+  - {file: rtl/sigmoid_lut.hex,  source: mnist_npu/rtl/sigmoid_lut.hex}
+  - {file: rtl/mnist_npu_defs.vh, source: mnist_npu/rtl/mnist_npu_defs.vh, note: "kept unmodified so sigmoid_lut.v's `include resolves without editing the reused file; cnn-specific ROMs use rtl/cnn_defs.vh instead"}
+
+modules:
+  - {block: BLK-001, module: cnn_npu,       file: rtl/cnn_npu.v,       source: custom, clock: clk_core, reset: rst_n, traces: [all REQs], status: complete}
+  - {block: BLK-002, module: ctrl_fsm,      file: rtl/ctrl_fsm.v,      source: custom, clock: clk_core, reset: rst_n, traces: [REQ-001, REQ-004, REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015, REQ-016, REQ-017, REQ-018, REQ-024, REQ-025, REQ-027, REQ-035, REQ-037], status: complete}
+  - {block: BLK-003, module: mac_datapath,  file: rtl/mac_datapath.v,  source: custom, clock: clk_core, reset: rst_n, traces: [REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-008, REQ-010, REQ-011, REQ-017, REQ-018], status: complete}
+  - {block: BLK-004, module: sigmoid_lut,   file: rtl/sigmoid_lut.v,   source: reuse,  clock: clk_core, reset: rst_n, repo: "mnist_npu/rtl/sigmoid_lut.v", commit: null, license: "project-internal", traces: [REQ-022], status: complete}
+  - {block: BLK-005, module: weight_rom,    file: rtl/weight_rom.v,    source: custom, clock: clk_core, reset: rst_n, traces: [REQ-013, REQ-019], status: complete}
+  - {block: BLK-006, module: image_rom,     file: rtl/image_rom.v,    source: custom, clock: clk_core, reset: rst_n, traces: [REQ-020], status: complete}
+  - {block: BLK-007, module: label_rom,     file: rtl/label_rom.v,    source: custom, clock: clk_core, reset: rst_n, traces: [REQ-021], status: complete}
+  - {block: BLK-008, module: fm_ram,        file: rtl/fm_ram.v,       source: custom, clock: clk_core, reset: rst_n, traces: [REQ-006, REQ-007, REQ-009, REQ-012, REQ-023], status: complete}
+  - {block: BLK-009, module: uart_tx,       file: rtl/uart_tx.v,       source: reuse,  clock: clk_core, reset: rst_n, repo: "mnist_npu/rtl/uart_tx.v", commit: null, license: "project-internal", traces: [REQ-031, REQ-033], status: complete}
+  - {block: BLK-010, module: led_ctrl,      file: rtl/led_ctrl.v,     source: reuse,  clock: clk_core, reset: rst_n, repo: "mnist_npu/rtl/led_ctrl.v", commit: null, license: "project-internal", traces: [REQ-026, REQ-027, REQ-028, REQ-029, REQ-030], status: complete}
+  - {block: BLK-011, module: uart_line_fmt, file: rtl/uart_line_fmt.v, source: reuse,  clock: clk_core, reset: rst_n, repo: "mnist_npu/rtl/uart_line_fmt.v", commit: null, license: "project-internal", traces: [REQ-031, REQ-032], status: complete}
+  - {block: BLK-012, module: win_addr_gen,  file: rtl/win_addr_gen.v, source: custom, clock: clk_core, reset: rst_n, traces: [REQ-004, REQ-006, REQ-007, REQ-008, REQ-009, REQ-012, REQ-013, REQ-023], status: complete}
+
+cdc_implementations: []   # single clock domain, 0 CDC paths — cdc_plan.md
+
+sdc: {file: sdc/sdc_spec.json, consumer: fe-opensta, clocks: 1, generated_clocks: 0,
+      false_paths: 0, multicycle_paths: 0, async_groups: 0}
+
+filelist: {file: filelist.f, includes: [rtl], excludes: [rtl/blackbox]}   # no blackbox dir — no analog macros
+
+testbenches: []   # none written this stage — verification is a later stage (task §6, §7)
+
+tools_executed: "iverilog -g2005 compile-only check (see doc/README.md); golden model gcc build+run to reproduce baseline"
+
+review_gate:
+  all_modules_present: true
+  no_systemverilog: true
+  no_dft: true
+  no_inferred_latches: true
+  all_flops_reset_or_exempt: true
+  all_cdc_implemented: true
+  sdc_complete: true
+
+user_next_steps:
+  - "iverilog -g2005 -s cnn_npu -o /tmp/cnn_check.vvp -f filelist.f   # fe-rtl compile gate (run from cnn/ root)"
+  - 'yosys -p "read_verilog $(cat filelist.f); synth -top cnn_npu"   # or feed filelist.f into fe-yosys %%RTL%%'
+  - "python3 <fe-opensta>/scripts/gen_sdc.py sdc/sdc_spec.json sdc/cnn_npu.sdc && bash <fe-opensta>/scripts/qa_sdc.sh cnn_npu <netlist> sdc/cnn_npu.sdc"
+  - "gcc -std=c99 -O2 -Wall -Wextra -o gm arch/golden_model/golden_ref_model.c && ./gm . (already re-verified this stage)"

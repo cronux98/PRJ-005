@@ -1,0 +1,3 @@
+ERROR tb_mnist_top (no verdict in log — timeout/hang?)
+
+RESULT: PASS=0 FAIL=0 ERROR=1

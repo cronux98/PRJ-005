@@ -1,0 +1,5 @@
+INFO C6: image 000 golden pred=7 conf=94% (memory init verified against golden hex)
+FAIL TRL-001: legal FSM state reached @1339763055000
+FAIL TRL-001: legal FSM state reached @1339763055000
+INFO: 200-image run (2 passes) completed @1339763055000 (~1339763055 ns sim time)
+FAIL tb_mnist_top: 2 errors

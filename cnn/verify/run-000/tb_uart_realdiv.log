@@ -1,0 +1,5 @@
+/home/smdadmin/PRJ-005/cnn/verify/tests/tb_uart_realdiv.v:35: error: Unknown module type: mnist_npu
+2 error(s) during elaboration.
+*** These modules were missing:
+        mnist_npu referenced 1 times.
+***

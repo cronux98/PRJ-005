@@ -1,0 +1,11 @@
+PASS tb_reset (VP-TOP-001)
+PASS tb_rom_readback (VP-ROM-001)
+PASS tb_sigmoid_lut_unit (VP-LUT-002)
+PASS tb_mac_datapath_unit (VP-MAC-001/002/003)
+PASS tb_uart_line_fmt_unit (VP-UART-001)
+ERROR tb_mnist_top (no verdict in log — timeout/hang?)
+PASS tb_uart_realdiv (VP-UART-002 real CLK_DIV=868)
+PASS check_lut.py (VP-LUT-001 exhaustive 65536/65536)
+FAIL uart_diff (C2/VP-TOP-004) — see /home/smdadmin/PRJ-005/cnn/verify/run-002/uart_diff.log
+
+RESULT: PASS=7 FAIL=1 ERROR=1

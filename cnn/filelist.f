@@ -1,0 +1,12 @@
+rtl/weight_rom.v
+rtl/image_rom.v
+rtl/label_rom.v
+rtl/fm_ram.v
+rtl/sigmoid_lut.v
+rtl/mac_datapath.v
+rtl/win_addr_gen.v
+rtl/uart_tx.v
+rtl/uart_line_fmt.v
+rtl/led_ctrl.v
+rtl/ctrl_fsm.v
+rtl/cnn_npu.v

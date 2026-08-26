@@ -1,0 +1,2 @@
+IMG 000: This is number 7 | confidence 94% | expected 7 | CORRECT
+IMG 001: This is number 2 | confidence 92% | expected 2 | CORRECT

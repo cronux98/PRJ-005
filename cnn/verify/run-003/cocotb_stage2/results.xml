@@ -1,0 +1,8 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1787714910" />
+    <testcase name="test_mnist_uart_led" classname="test_mnist_top" file="/home/smdadmin/PRJ-005/cnn/verify/run-003/cocotb_stage2/test_mnist_top.py" lineno="101" time="877.1662113666534" sim_time_ns="60262930.0" ratio_time="68701.8369142473">
+      <failure error_type="AssertionError" error_msg="img_idx mismatch: got 8 want 18&#10;assert 8 == 18" />
+    </testcase>
+  </testsuite>
+</testsuites>

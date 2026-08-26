@@ -1,0 +1,75 @@
+%% FSM-001 : ctrl_fsm outer state (binary encoding, 8 states, reset state = ST_CONV1)
+%% Full transition table with conditions is in arch.md §6.1 — this diagram is the human-readable view.
+%% "mac_phase done" / "pool_phase done" / "present_phase done" refer to FSM-002/003/004 below.
+stateDiagram-v2
+  [*] --> ST_CONV1
+  ST_CONV1 --> ST_CONV1 : !(mac_phase_done && loop_exhausted)
+  ST_CONV1 --> ST_POOL1 : mac_phase_done && loop_exhausted
+  ST_POOL1 --> ST_POOL1 : !(pool_phase_done && loop_exhausted)
+  ST_POOL1 --> ST_CONV2 : pool_phase_done && loop_exhausted
+  ST_CONV2 --> ST_CONV2 : !(mac_phase_done && loop_exhausted)
+  ST_CONV2 --> ST_POOL2 : mac_phase_done && loop_exhausted
+  ST_POOL2 --> ST_POOL2 : !(pool_phase_done && loop_exhausted)
+  ST_POOL2 --> ST_FC1   : pool_phase_done && loop_exhausted
+  ST_FC1   --> ST_FC1   : !(mac_phase_done && loop_exhausted)
+  ST_FC1   --> ST_FC2   : mac_phase_done && loop_exhausted
+  ST_FC2   --> ST_FC2   : !(mac_phase_done && loop_exhausted)
+  ST_FC2   --> ST_PRESENT : mac_phase_done && loop_exhausted
+  ST_PRESENT --> ST_PRESENT : !present_phase_done
+  ST_PRESENT --> ST_HOLD     : present_phase_done
+  ST_HOLD --> ST_HOLD    : hold_cnt != HOLD_CYCLES-1
+  ST_HOLD --> ST_CONV1   : hold_cnt == HOLD_CYCLES-1
+
+%% FSM-002 : mac_phase (shared sub-machine of CONV1/CONV2/FC1/FC2; binary encoding, 6 phases,
+%% reset phase = PH_BIAS_ADDR). Full transition table: arch.md §6.2.
+stateDiagram-v2
+  [*] --> PH_BIAS_ADDR
+  PH_BIAS_ADDR --> PH_BIAS_ACC : 1'b1
+  PH_BIAS_ACC  --> PH_TAP_ADDR : 1'b1
+  PH_TAP_ADDR  --> PH_TAP_ACC  : 1'b1
+  PH_TAP_ACC   --> PH_TAP_ADDR : tap_idx != tap_count-1
+  PH_TAP_ACC   --> PH_ACT      : tap_idx == tap_count-1
+  PH_ACT       --> PH_WB       : 1'b1
+  PH_WB        --> PH_BIAS_ADDR : 1'b1
+
+%% FSM-003 : pool_phase (shared sub-machine of POOL1/POOL2; binary encoding, 6 phases,
+%% reset phase = PH_READ0). Full transition table: arch.md §6.3.
+stateDiagram-v2
+  [*] --> PH_READ0
+  PH_READ0 --> PH_READ1 : 1'b1
+  PH_READ1 --> PH_READ2 : 1'b1
+  PH_READ2 --> PH_READ3 : 1'b1
+  PH_READ3 --> PH_CMP   : 1'b1
+  PH_CMP   --> PH_WB    : 1'b1
+  PH_WB    --> PH_READ0 : 1'b1
+
+%% FSM-004 : present_phase (sub-machine of PRESENT; binary encoding, 2 phases,
+%% reset phase = PH_RESULT). Full transition table: arch.md §6.5.
+stateDiagram-v2
+  [*] --> PH_RESULT
+  PH_RESULT --> PH_WAIT_UART : 1'b1
+  PH_WAIT_UART --> PH_WAIT_UART : !lf_done
+  PH_WAIT_UART --> PH_RESULT    : lf_done
+
+%% FSM-005 : uart_line_fmt (reused verbatim from v1; binary encoding, 3 states,
+%% reset state = ST_LF_IDLE). Unchanged from mnist_npu/arch/fsm_diagrams.mmd FSM-002.
+stateDiagram-v2
+  [*] --> ST_LF_IDLE
+  ST_LF_IDLE --> ST_LF_IDLE    : !lf_start
+  ST_LF_IDLE --> ST_LF_COMPOSE : lf_start
+  ST_LF_COMPOSE --> ST_LF_SEND : 1'b1
+  ST_LF_SEND --> ST_LF_SEND    : !(byte_idx == line_len-1 && utx_ready)
+  ST_LF_SEND --> ST_LF_IDLE    : byte_idx == line_len-1 && utx_ready
+
+%% FSM-006 : uart_tx (reused verbatim from v1; binary encoding, 4 states,
+%% reset state = ST_UTX_IDLE). Unchanged from mnist_npu/arch/fsm_diagrams.mmd FSM-003.
+stateDiagram-v2
+  [*] --> ST_UTX_IDLE
+  ST_UTX_IDLE --> ST_UTX_IDLE  : !utx_valid
+  ST_UTX_IDLE --> ST_UTX_START : utx_valid
+  ST_UTX_START --> ST_UTX_START : !baud_tick
+  ST_UTX_START --> ST_UTX_DATA  : baud_tick
+  ST_UTX_DATA --> ST_UTX_DATA  : !(baud_tick && bit_cnt==7)
+  ST_UTX_DATA --> ST_UTX_STOP  : baud_tick && bit_cnt==7
+  ST_UTX_STOP --> ST_UTX_STOP  : !baud_tick
+  ST_UTX_STOP --> ST_UTX_IDLE  : baud_tick

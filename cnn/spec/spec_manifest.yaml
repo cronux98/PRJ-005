@@ -1,0 +1,40 @@
+schema_version: "1.0"
+stage: fe-spec
+generated_for: fe-arch
+project_name: "cnn"
+technology: {pdk: fpga_generic, node_nm: null, core_voltage_v: null}   # DEVIATION from sky130 default — see spec.md §2.1
+deviation_note: >
+  Technology is FPGA (Xilinx Artix-7 100T / Nexys A7, eventual target; FPGA bring-up out of scope
+  this stage), not SkyWater Sky130 130 nm ASIC. Identical, explicit deviation to sibling project
+  v1 mnist_npu (see mnist_npu/spec/spec_manifest.yaml for precedent). fe-arch/fe-rtl must carry
+  `technology.pdk: fpga_generic` forward unchanged and must not substitute Sky130-specific
+  artifacts (cell names, analog black boxes, DFT policy) anywhere.
+constraints: {rtl_language: verilog-2001, dft: none, custom_analog: false}
+artifacts:
+  - {file: spec.md,               present: true}
+  - {file: requirements.yaml,     present: true}
+  - {file: interfaces.yaml,       present: true}
+  - {file: verification_plan.md,  present: true}
+counts:
+  requirements: 37
+  assumptions: 2
+  interfaces: 3
+  clock_domains: 1
+  cdc_paths: 0
+  ip_reuse_candidates: 4
+  verification_items_top: 8
+  verification_items_module: 17
+review_gate:
+  all_requirements_measurable: true
+  all_requirements_traced: true
+  no_orphan_verification_items: true
+  no_contradictions_found: true
+  cdc_enumerated: true    # trivially true: 0 crossings exist in a single-clock-domain design
+blocking_open_issues: []
+unconfirmed_assumptions: [ASM-001, ASM-002]
+assumptions_acknowledged: true   # explicitly acknowledged by this stage (spec.md §11): neither can affect
+                                   # bit-exactness; fe-arch may proceed per ARCH-E012 without a human round-trip
+golden_reference:
+  frozen: true
+  location: "arch/golden_model/"
+  note: "Golden package (golden_ref_model.c, weights.hex, images.hex, labels.hex, expected.hex, expected_outputs.txt) pre-exists and is FROZEN before this fe-spec stage ran. fe-spec/fe-arch/fe-rtl must not regenerate, edit, or relocate it. Reproduced bit-exact by this stage: gcc -std=c99 -O2 -Wall -Wextra -o gm golden_ref_model.c && ./gm . matches expected_outputs.txt exactly (see WORKLOG.md)."

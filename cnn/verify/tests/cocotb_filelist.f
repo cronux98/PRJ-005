@@ -1,0 +1,13 @@
+/home/smdadmin/PRJ-005/cnn/rtl/weight_rom.v
+/home/smdadmin/PRJ-005/cnn/rtl/image_rom.v
+/home/smdadmin/PRJ-005/cnn/rtl/label_rom.v
+/home/smdadmin/PRJ-005/cnn/rtl/fm_ram.v
+/home/smdadmin/PRJ-005/cnn/rtl/sigmoid_lut.v
+/home/smdadmin/PRJ-005/cnn/rtl/mac_datapath.v
+/home/smdadmin/PRJ-005/cnn/rtl/win_addr_gen.v
+/home/smdadmin/PRJ-005/cnn/rtl/uart_tx.v
+/home/smdadmin/PRJ-005/cnn/rtl/uart_line_fmt.v
+/home/smdadmin/PRJ-005/cnn/rtl/led_ctrl.v
+/home/smdadmin/PRJ-005/cnn/rtl/ctrl_fsm.v
+/home/smdadmin/PRJ-005/cnn/rtl/cnn_npu.v
+/home/smdadmin/PRJ-005/cnn/verify/tests/cnn_npu_cocotb_wrapper.v

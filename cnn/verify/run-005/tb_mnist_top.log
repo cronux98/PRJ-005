@@ -1,0 +1,3 @@
+INFO C6: image 000 golden pred=7 conf=94% (memory init verified against golden hex)
+INFO: 200-image run (2 passes) completed @1339763055000 (~1339763055 ns sim time)
+PASS tb_mnist_top

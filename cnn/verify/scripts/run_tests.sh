@@ -44,7 +44,7 @@ run_one() {
         ERROR=$((ERROR+1))
         return
     fi
-    ( cd "$ROOT" && timeout 300 vvp "$RUN_DIR/$tb.vvp" +OUTDIR="$RUN_DIR" >> "$log" 2>&1 )
+    ( cd "$ROOT" && timeout 7200 vvp "$RUN_DIR/$tb.vvp" +OUTDIR="$RUN_DIR" >> "$log" 2>&1 )
     if grep -qE '^PASS ' "$log"; then
         echo "PASS $tb ($label)" | tee -a "$SUMMARY"
         PASS=$((PASS+1))

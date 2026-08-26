@@ -27,13 +27,13 @@ cp "$VERIFY/tests/test_mnist_top.py" "$OUTDIR/"
 # the header at a CWD-relative path instead (default include search checks
 # CWD) — simpler and doesn't depend on Makefile-generation internals.
 mkdir -p "$OUTDIR/rtl"
-cp "$ROOT/rtl/mnist_npu_defs.vh" "$OUTDIR/rtl/"
+cp "$ROOT/rtl/mnist_npu_defs.vh" "$ROOT/rtl/cnn_defs.vh" "$OUTDIR/rtl/"
 
 export PATH="$HOME/.local/bin:$PATH"
 
 bash ~/.openclaw/workspace/skills/fe-cocotb/scripts/run_cocotb.sh \
     --filelist "$VERIFY/tests/cocotb_filelist.f" \
-    --top mnist_npu_cocotb_wrapper \
+    --top cnn_npu_cocotb_wrapper \
     --test test_mnist_top \
     --sim icarus \
     --outdir "$OUTDIR"

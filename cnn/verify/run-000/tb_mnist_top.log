@@ -1,0 +1,445 @@
+INFO C6: image 000 golden pred=7 conf=94% (memory init verified against golden hex)
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000000 want=0x00000001 @6698837000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000002 @6698837000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @6698837000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000004 @6698846000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000000 want=0x00000002 @6698847000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000001 @6698847000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000002 @6698856000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000000 want=0x00000003 @6698857000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000000 @6698857000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @6698857000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000001 @6698866000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000000 want=0x00000004 @6698867000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000004 @6698867000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000010 @6698876000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000000 want=0x00000005 @6698877000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000001 @6698877000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000002 @6698886000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000000 want=0x00000006 @6698887000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000004 @6698887000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @6698887000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000010 @6698896000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000001 want=0x00000007 @13397676000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000002 want=0x00000009 @13397676000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x00000059 @13397676000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000004 want=0x00000200 @13397686000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000001 want=0x00000008 @13397687000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000002 want=0x00000005 @13397687000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000004c @13397687000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000004 want=0x00000020 @13397696000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000001 want=0x00000009 @13397697000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000002 want=0x00000009 @13397697000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000004 want=0x00000200 @13397706000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000001 want=0x0000000a @13397707000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000002 want=0x00000000 @13397707000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005b @13397707000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000004 want=0x00000001 @13397716000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000001 want=0x0000000b @13397717000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000002 want=0x00000006 @13397717000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @13397717000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000004 want=0x00000040 @13397726000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000001 want=0x0000000c @13397727000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000002 want=0x00000009 @13397727000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000004 want=0x00000200 @13397736000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000001 want=0x0000000d @13397737000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000002 want=0x00000000 @13397737000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000004 want=0x00000001 @13397746000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000002 want=0x0000000e @20096526000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000002 want=0x0000000f @20096537000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000005 @20096537000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @20096537000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000020 @20096546000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000002 want=0x00000010 @20096547000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000009 @20096547000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @20096547000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000200 @20096556000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000002 want=0x00000011 @20096557000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000007 @20096557000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000080 @20096566000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000002 want=0x00000012 @20096567000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000008 @20096567000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x00000014 @20096567000
+FAIL TOP-002: verdict == expected.hex: got=0x00000000 want=0x00000002 @20096567000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000000 @20096576000
+FAIL  led[10] == (verdict != CORRECT): got=0 want=1 @20096576000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000002 want=0x00000013 @20096577000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000004 @20096577000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @20096577000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000010 @20096586000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000002 want=0x00000014 @20096587000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000009 @20096587000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @20096587000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000200 @20096596000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000003 want=0x00000015 @26795376000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000006 @26795376000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000040 @26795386000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000003 want=0x00000016 @26795387000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000006 @26795387000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000040 @26795396000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000003 want=0x00000017 @26795397000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000005 @26795397000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @26795397000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000020 @26795406000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000003 want=0x00000018 @26795407000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000004 @26795407000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @26795407000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000010 @26795416000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000003 want=0x00000019 @26795417000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @26795417000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000003 want=0x0000001a @26795427000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000007 @26795427000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005e @26795427000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000080 @26795436000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000003 want=0x0000001b @26795437000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000004 @26795437000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005e @26795437000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000010 @26795446000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000004 want=0x0000001c @33494226000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000000 @33494226000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @33494226000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000001 @33494236000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000004 want=0x0000001d @33494237000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000001 @33494237000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @33494237000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000002 @33494246000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000004 want=0x0000001e @33494247000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000003 @33494247000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005b @33494247000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000008 @33494256000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000004 want=0x0000001f @33494257000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000001 @33494257000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000002 @33494266000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000004 want=0x00000020 @33494267000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000003 @33494267000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @33494267000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000008 @33494276000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000004 want=0x00000021 @33494277000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005b @33494277000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000004 want=0x00000022 @33494287000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000007 @33494287000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @33494287000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000080 @33494296000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000005 want=0x00000023 @40193076000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000002 @40193076000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000004 @40193086000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000005 want=0x00000024 @40193087000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000007 @40193087000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @40193087000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000080 @40193096000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000005 want=0x00000025 @40193097000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000005 want=0x00000026 @40193107000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000002 @40193107000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @40193107000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000004 @40193116000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000005 want=0x00000027 @40193117000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000005 want=0x00000028 @40193127000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000005 want=0x00000029 @40193137000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000007 @40193137000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005b @40193137000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000080 @40193146000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000006 want=0x0000002a @46891926000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @46891926000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000006 want=0x0000002b @46891937000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000002 @46891937000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @46891937000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000004 @46891946000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000006 want=0x0000002c @46891947000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000003 @46891947000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005b @46891947000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000008 @46891956000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000006 want=0x0000002d @46891957000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000005 @46891957000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000020 @46891966000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000006 want=0x0000002e @46891967000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000001 @46891967000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @46891967000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000002 @46891976000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000006 want=0x0000002f @46891977000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000004 want=0x00000002 @46891977000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @46891977000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000010 want=0x00000004 @46891986000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000006 want=0x00000030 @46891987000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @46891987000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000007 want=0x00000031 @53590776000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000004 @53590776000
+FAIL -002: confidence == expected.hex: got=0x00000059 want=0x0000005e @53590776000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000010 @53590786000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000007 want=0x00000032 @53590787000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000006 @53590787000
+FAIL -002: confidence == expected.hex: got=0x00000059 want=0x0000005e @53590787000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000040 @53590796000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000007 want=0x00000033 @53590797000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000003 @53590797000
+FAIL -002: confidence == expected.hex: got=0x00000059 want=0x0000005a @53590797000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000008 @53590806000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000007 want=0x00000034 @53590807000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000005 @53590807000
+FAIL -002: confidence == expected.hex: got=0x00000059 want=0x0000005c @53590807000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000020 @53590816000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000007 want=0x00000035 @53590817000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000005 @53590817000
+FAIL -002: confidence == expected.hex: got=0x00000059 want=0x0000005d @53590817000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000020 @53590826000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000007 want=0x00000036 @53590827000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000006 @53590827000
+FAIL -002: confidence == expected.hex: got=0x00000059 want=0x0000005a @53590827000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000040 @53590836000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000007 want=0x00000037 @53590837000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000000 @53590837000
+FAIL -002: confidence == expected.hex: got=0x00000059 want=0x0000005d @53590837000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000001 @53590846000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000008 want=0x00000038 @60289626000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000004 @60289626000
+FAIL -002: confidence == expected.hex: got=0x0000004c want=0x0000005d @60289626000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000010 @60289636000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000008 want=0x00000039 @60289637000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000001 @60289637000
+FAIL -002: confidence == expected.hex: got=0x0000004c want=0x0000005e @60289637000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000002 @60289646000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000008 want=0x0000003a @60289647000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000009 @60289647000
+FAIL -002: confidence == expected.hex: got=0x0000004c want=0x0000005b @60289647000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000200 @60289656000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000008 want=0x0000003b @60289657000
+FAIL -002: confidence == expected.hex: got=0x0000004c want=0x00000053 @60289657000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000008 want=0x0000003c @60289667000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000007 @60289667000
+FAIL -002: confidence == expected.hex: got=0x0000004c want=0x0000005e @60289667000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000080 @60289676000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000008 want=0x0000003d @60289677000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000008 @60289677000
+FAIL -002: confidence == expected.hex: got=0x0000004c want=0x0000005c @60289677000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000100 @60289686000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000008 want=0x0000003e @60289687000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000009 @60289687000
+FAIL -002: confidence == expected.hex: got=0x0000004c want=0x0000004b @60289687000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000200 @60289696000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000009 want=0x0000003f @66988476000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000003 @66988476000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x00000050 @66988476000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000008 @66988486000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000009 want=0x00000040 @66988487000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000007 @66988487000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @66988487000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000080 @66988496000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000009 want=0x00000041 @66988497000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000004 @66988497000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005b @66988497000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000010 @66988506000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000009 want=0x00000042 @66988507000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000006 @66988507000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @66988507000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000040 @66988516000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000009 want=0x00000043 @66988517000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000004 @66988517000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005e @66988517000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000010 @66988526000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000009 want=0x00000044 @66988527000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000003 @66988527000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000008 @66988536000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000009 want=0x00000045 @66988537000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000000 @66988537000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @66988537000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000001 @66988546000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000a want=0x00000046 @73687326000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000007 @73687326000
+FAIL -002: confidence == expected.hex: got=0x0000005b want=0x0000005e @73687326000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000080 @73687336000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000a want=0x00000047 @73687337000
+FAIL -002: confidence == expected.hex: got=0x0000005b want=0x0000005c @73687337000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000a want=0x00000048 @73687347000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000002 @73687347000
+FAIL -002: confidence == expected.hex: got=0x0000005b want=0x0000005d @73687347000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000004 @73687356000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000a want=0x00000049 @73687357000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000009 @73687357000
+FAIL -002: confidence == expected.hex: got=0x0000005b want=0x00000019 @73687357000
+FAIL TOP-002: verdict == expected.hex: got=0x00000000 want=0x00000002 @73687357000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000000 @73687366000
+FAIL  led[10] == (verdict != CORRECT): got=0 want=1 @73687366000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000a want=0x0000004a @73687367000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000001 @73687367000
+FAIL -002: confidence == expected.hex: got=0x0000005b want=0x0000005e @73687367000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000002 @73687376000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000a want=0x0000004b @73687377000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000007 @73687377000
+FAIL -002: confidence == expected.hex: got=0x0000005b want=0x0000005e @73687377000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000080 @73687386000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000a want=0x0000004c @73687387000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000003 @73687387000
+FAIL -002: confidence == expected.hex: got=0x0000005b want=0x0000005c @73687387000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000008 @73687396000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000b want=0x0000004d @80386176000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000006 want=0x00000002 @80386176000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000040 want=0x00000004 @80386186000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000b want=0x0000004e @80386187000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000006 want=0x00000009 @80386187000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x00000054 @80386187000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000040 want=0x00000200 @80386196000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000b want=0x0000004f @80386197000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000006 want=0x00000007 @80386197000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x0000005e @80386197000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000040 want=0x00000080 @80386206000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000b want=0x00000050 @80386207000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000006 want=0x00000007 @80386207000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x0000005b @80386207000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000040 want=0x00000080 @80386216000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000b want=0x00000051 @80386217000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x0000005c @80386217000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000b want=0x00000052 @80386227000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000006 want=0x00000002 @80386227000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x0000005e @80386227000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000040 want=0x00000004 @80386236000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000b want=0x00000053 @80386237000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000006 want=0x00000007 @80386237000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000040 want=0x00000080 @80386246000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000c want=0x00000054 @87085026000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000008 @87085026000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000100 @87085036000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000c want=0x00000055 @87085037000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000004 @87085037000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @87085037000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000010 @87085046000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000c want=0x00000056 @87085047000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000007 @87085047000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @87085047000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000080 @87085056000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000c want=0x00000057 @87085057000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000003 @87085057000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005b @87085057000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000008 @87085066000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000c want=0x00000058 @87085067000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000006 @87085067000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005e @87085067000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000040 @87085076000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000c want=0x00000059 @87085077000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000001 @87085077000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005e @87085077000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000002 @87085086000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000c want=0x0000005a @87085087000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000003 @87085087000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000008 @87085096000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000d want=0x0000005b @93783876000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000006 @93783876000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005e @93783876000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000040 @93783886000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000d want=0x0000005c @93783887000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000009 @93783887000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x00000050 @93783887000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000200 @93783896000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000d want=0x0000005d @93783897000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000003 @93783897000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000008 @93783906000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000d want=0x0000005e @93783907000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000001 @93783907000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000002 @93783916000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000d want=0x0000005f @93783917000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000004 @93783917000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000010 @93783926000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000d want=0x00000060 @93783927000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000001 @93783927000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x00000054 @93783927000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000002 @93783936000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000d want=0x00000061 @93783937000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000000 want=0x00000007 @93783937000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005b @93783937000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000001 want=0x00000080 @93783946000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000e want=0x00000062 @100482726000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000006 @100482726000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @100482726000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000040 @100482736000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000e want=0x00000063 @100482737000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000009 @100482737000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000200 @100482746000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000e want=0x00000000 @100482747000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000007 @100482747000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000080 @100482756000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000e want=0x00000001 @100482757000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000002 @100482757000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @100482757000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000004 @100482766000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000e want=0x00000002 @100482767000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000e want=0x00000003 @100482777000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000000 @100482777000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @100482777000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000001 @100482786000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000e want=0x00000004 @100482787000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000001 want=0x00000004 @100482787000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000002 want=0x00000010 @100482796000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000f want=0x00000005 @107181576000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000001 @107181576000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005e @107181576000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000002 @107181586000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000f want=0x00000006 @107181587000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000004 @107181587000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000010 @107181596000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000f want=0x00000007 @107181597000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000009 @107181597000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x00000059 @107181597000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000200 @107181606000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000f want=0x00000008 @107181607000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000004c @107181607000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000f want=0x00000009 @107181617000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000009 @107181617000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000200 @107181626000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000f want=0x0000000a @107181627000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000000 @107181627000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005b @107181627000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000001 @107181636000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x0000000f want=0x0000000b @107181637000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000005 want=0x00000006 @107181637000
+FAIL -002: confidence == expected.hex: got=0x0000005c want=0x0000005d @107181637000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000020 want=0x00000040 @107181646000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000010 want=0x0000000c @113880426000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x0000005c @113880426000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000010 want=0x0000000d @113880437000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000000 @113880437000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x0000005c @113880437000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000001 @113880446000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000010 want=0x0000000e @113880447000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000001 @113880447000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x0000005e @113880447000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000002 @113880456000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000010 want=0x0000000f @113880457000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000005 @113880457000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x0000005c @113880457000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000020 @113880466000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000010 want=0x00000011 @113880477000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000007 @113880477000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x0000005e @113880477000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000080 @113880486000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000010 want=0x00000012 @113880487000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000009 want=0x00000008 @113880487000
+FAIL -002: confidence == expected.hex: got=0x0000005d want=0x00000014 @113880487000
+FAIL TOP-002: verdict == expected.hex: got=0x00000000 want=0x00000002 @113880487000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000200 want=0x00000000 @113880496000
+FAIL  led[10] == (verdict != CORRECT): got=0 want=1 @113880496000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000011 want=0x00000013 @120579276000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000004 @120579276000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @120579276000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000010 @120579286000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000011 want=0x00000014 @120579287000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000009 @120579287000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @120579287000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000200 @120579296000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000011 want=0x00000015 @120579297000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000006 @120579297000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @120579297000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000040 @120579306000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000011 want=0x00000016 @120579307000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000006 @120579307000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005c @120579307000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000040 @120579316000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000011 want=0x00000017 @120579317000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000005 @120579317000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @120579317000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000020 @120579326000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000011 want=0x00000018 @120579327000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000004 @120579327000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @120579327000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000010 @120579336000
+FAIL 03: img_idx sequence 0..99 wraps: got=0x00000011 want=0x00000019 @120579337000
+FAIL VP-TOP-002: pred == expected.hex: got=0x00000007 want=0x00000000 @120579337000
+FAIL -002: confidence == expected.hex: got=0x0000005e want=0x0000005d @120579337000
+FAIL 01: led[9:0] one-hot / trash-off: got=0x00000080 want=0x00000001 @120579346000

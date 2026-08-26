@@ -1,0 +1,18 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/weight_rom.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/image_rom.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/label_rom.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/fm_ram.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/sigmoid_lut.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/mac_datapath.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/win_addr_gen.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/uart_tx.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/uart_line_fmt.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/led_ctrl.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/ctrl_fsm.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/rtl/cnn_npu.v
+VERILOG_SOURCES += /home/smdadmin/PRJ-005/cnn/verify/tests/cnn_npu_cocotb_wrapper.v
+COCOTB_TOPLEVEL := cnn_npu_cocotb_wrapper
+COCOTB_TEST_MODULES := test_mnist_top
+include $(shell cocotb-config --makefiles)/Makefile.sim

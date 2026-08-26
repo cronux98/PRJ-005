@@ -1,0 +1,44 @@
+rm -f results.xml
+"make" -f Makefile.gen results.xml
+make[1]: Entering directory '/home/smdadmin/PRJ-005/cnn/verify/run-003/cocotb_stage2'
+mkdir -p sim_build
+/usr/bin/iverilog -o sim_build/sim.vvp -s cnn_npu_cocotb_wrapper -g2012 -f sim_build/cmds.f  /home/smdadmin/PRJ-005/cnn/rtl/weight_rom.v /home/smdadmin/PRJ-005/cnn/rtl/image_rom.v /home/smdadmin/PRJ-005/cnn/rtl/label_rom.v /home/smdadmin/PRJ-005/cnn/rtl/fm_ram.v /home/smdadmin/PRJ-005/cnn/rtl/sigmoid_lut.v /home/smdadmin/PRJ-005/cnn/rtl/mac_datapath.v /home/smdadmin/PRJ-005/cnn/rtl/win_addr_gen.v /home/smdadmin/PRJ-005/cnn/rtl/uart_tx.v /home/smdadmin/PRJ-005/cnn/rtl/uart_line_fmt.v /home/smdadmin/PRJ-005/cnn/rtl/led_ctrl.v /home/smdadmin/PRJ-005/cnn/rtl/ctrl_fsm.v /home/smdadmin/PRJ-005/cnn/rtl/cnn_npu.v /home/smdadmin/PRJ-005/cnn/verify/tests/cnn_npu_cocotb_wrapper.v
+rm -f results.xml
+COCOTB_TEST_MODULES=test_mnist_top COCOTB_TESTCASE= COCOTB_TEST_FILTER= COCOTB_TOPLEVEL=cnn_npu_cocotb_wrapper TOPLEVEL_LANG=verilog \
+         /usr/bin/vvp -M /usr/local/lib/python3.10/dist-packages/cocotb/libs -m libcocotbvpi_icarus   sim_build/sim.vvp   
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.10.14 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 11.0 (stable)
+     0.00ns WARNING  gpi                                vpi_iterate returned NULL for type vpiInstance for object NULL
+     0.00ns INFO     cocotb                             Seeding Python random module with 1787714910
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /usr/local/lib/python3.10/dist-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_mnist_top.test_mnist_uart_led (1/1)
+     0.00ns WARNING  py.warnings                        /home/smdadmin/PRJ-005/cnn/verify/run-003/cocotb_stage2/test_mnist_top.py:103: DeprecationWarning: The 'units' argument has been renamed to 'unit'.
+                                                          cocotb.start_soon(Clock(dut.clk, CLK_PERIOD_NS, units="ns").start())
+6699210.00ns INFO     cocotb.cnn_npu_cocotb_wrapper      image 0: OK pred=7 conf=94% verdict=0 blink_toggles=166802 line='IMG 000: This is number 7 | confidence 94% | expected 7 | CORRECT'
+13398060.00ns INFO     cocotb.cnn_npu_cocotb_wrapper      image 1: OK pred=2 conf=92% verdict=0 blink_toggles=166795 line='IMG 001: This is number 2 | confidence 92% | expected 2 | CORRECT'
+20096910.00ns INFO     cocotb.cnn_npu_cocotb_wrapper      image 2: OK pred=1 conf=94% verdict=0 blink_toggles=166795 line='IMG 002: This is number 1 | confidence 94% | expected 1 | CORRECT'
+26795760.00ns INFO     cocotb.cnn_npu_cocotb_wrapper      image 3: OK pred=0 conf=92% verdict=0 blink_toggles=166795 line='IMG 003: This is number 0 | confidence 92% | expected 0 | CORRECT'
+33494610.00ns INFO     cocotb.cnn_npu_cocotb_wrapper      image 4: OK pred=4 conf=94% verdict=0 blink_toggles=166795 line='IMG 004: This is number 4 | confidence 94% | expected 4 | CORRECT'
+40193460.00ns INFO     cocotb.cnn_npu_cocotb_wrapper      image 5: OK pred=1 conf=94% verdict=0 blink_toggles=166795 line='IMG 005: This is number 1 | confidence 94% | expected 1 | CORRECT'
+46892310.00ns INFO     cocotb.cnn_npu_cocotb_wrapper      image 6: OK pred=4 conf=92% verdict=0 blink_toggles=166795 line='IMG 006: This is number 4 | confidence 92% | expected 4 | CORRECT'
+53591160.00ns INFO     cocotb.cnn_npu_cocotb_wrapper      image 7: OK pred=9 conf=89% verdict=0 blink_toggles=166795 line='IMG 007: This is number 9 | confidence 89% | expected 9 | CORRECT'
+60262930.00ns WARNING  ..ist_uart_led.test_mnist_uart_led img_idx mismatch: got 8 want 18
+                                                          assert 8 == 18
+                                                          Traceback (most recent call last):
+                                                            File "/home/smdadmin/PRJ-005/cnn/verify/run-003/cocotb_stage2/test_mnist_top.py", line 134, in test_mnist_uart_led
+                                                              assert idx == image, f"img_idx mismatch: got {idx} want {image}"
+                                                          AssertionError: img_idx mismatch: got 8 want 18
+                                                          assert 8 == 18
+60262930.00ns WARNING  cocotb.regression                  test_mnist_top.test_mnist_uart_led failed
+60262930.00ns INFO     cocotb.regression                  ********************************************************************************************
+                                                          ** TEST                                STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                          ********************************************************************************************
+                                                          ** test_mnist_top.test_mnist_uart_led   FAIL    60262930.00         877.17      68701.84  **
+                                                          ********************************************************************************************
+                                                          ** TESTS=1 PASS=0 FAIL=1 SKIP=0                 60262930.00         877.18      68700.97  **
+                                                          ********************************************************************************************
+make[1]: *** [/usr/local/lib/python3.10/dist-packages/cocotb_tools/makefiles/simulators/Makefile.icarus:67: results.xml] Error 1
+make[1]: Leaving directory '/home/smdadmin/PRJ-005/cnn/verify/run-003/cocotb_stage2'
+make: *** [/usr/local/lib/python3.10/dist-packages/cocotb_tools/makefiles/Makefile.inc:17: sim] Error 2

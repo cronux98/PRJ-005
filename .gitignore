@@ -17,3 +17,11 @@ data/
 mnist_npu/verify/run-*/**/*.vvp
 mnist_npu/verify/**/sim_build/
 mnist_npu/verify/**/__pycache__/
+
+# cnn (PRJ-005 v2) verification EVIDENCE is versioned too (same policy).
+!cnn/verify/iterations.log
+!cnn/verify/run-*/
+!cnn/verify/run-*/**
+cnn/verify/run-*/**/*.vvp
+cnn/verify/**/sim_build/
+cnn/verify/**/__pycache__/

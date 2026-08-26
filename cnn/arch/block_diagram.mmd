@@ -1,0 +1,55 @@
+%% block_diagram.mmd — cnn (mnist_npu v2), single clock domain CD_CORE (100 MHz nominal)
+%% No CDC crossings exist in this design (single domain) — all arrows are intra-domain.
+flowchart TB
+  subgraph CD_CORE["CD_CORE — clk_core, 100 MHz nominal (CLK-001)"]
+    TOP["BLK-001<br/>cnn_npu"]
+    CTRL["BLK-002<br/>ctrl_fsm<br/>(FSM-001/002/003/004)"]
+    MAC["BLK-003<br/>mac_datapath"]
+    LUT["BLK-004<br/>sigmoid_lut<br/>65536x8 ROM (reused v1)"]
+    WROM["BLK-005<br/>weight_rom<br/>26698x16 ROM"]
+    IROM["BLK-006<br/>image_rom<br/>78400x8 ROM"]
+    LROM["BLK-007<br/>label_rom<br/>100x8 ROM"]
+    FMRAM["BLK-008<br/>fm_ram<br/>7840x16 RAM (2 regions)"]
+    UTX["BLK-009<br/>uart_tx<br/>(FSM-006, reused v1)"]
+    LEDC["BLK-010<br/>led_ctrl<br/>(reused v1)"]
+    LFMT["BLK-011<br/>uart_line_fmt<br/>(FSM-005, reused v1)"]
+    WAG["BLK-012<br/>win_addr_gen<br/>(combinational)"]
+  end
+
+  TOP --> CTRL
+  TOP --> MAC
+  TOP --> LUT
+  TOP --> WROM
+  TOP --> IROM
+  TOP --> LROM
+  TOP --> FMRAM
+  TOP --> UTX
+  TOP --> LEDC
+  TOP --> LFMT
+  TOP --> WAG
+
+  CTRL -.->|"IFI-001 mac_operands<br/>(enables/selects)"| MAC
+  CTRL -.->|"IFI-002 lut_port"| LUT
+  CTRL -.->|"IFI-003 weight_rom_port"| WROM
+  CTRL -.->|"IFI-004 image_rom_port"| IROM
+  CTRL -.->|"IFI-005 label_rom_port"| LROM
+  CTRL -.->|"IFI-006 fm_ram_port"| FMRAM
+  CTRL -.->|"IFI-008 led_ctrl_port"| LEDC
+  CTRL -.->|"IFI-009 line_fmt_ctrl"| LFMT
+  CTRL -.->|"IFI-010 win_addr_gen_port<br/>(counters, layer_sel)"| WAG
+  LFMT -.->|"IFI-007 uart_tx_port<br/>(valid/ready)"| UTX
+
+  WAG -->|"irom_addr, wrom_addr,<br/>fmram_rd/wr_addr, tap_valid"| CTRL
+  MAC -->|"mac_z, mac_h"| CTRL
+  LUT -->|lut_data| CTRL
+  WROM -->|wrom_data| MAC
+  IROM -->|irom_data| MAC
+  FMRAM -->|fmram_rdata| MAC
+  LROM -->|lrom_data| CTRL
+  LFMT -->|lf_done| CTRL
+
+  UTX -->|uart_tx| PADU(("uart_tx<br/>pin"))
+  LEDC -->|"led[11:0]"| PADL(("led[11:0]<br/>pins"))
+
+  classDef pin fill:#eee,stroke:#333,stroke-dasharray: 3 3;
+  class PADU,PADL pin;
