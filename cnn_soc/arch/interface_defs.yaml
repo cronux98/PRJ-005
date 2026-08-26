@@ -1,0 +1,289 @@
+schema_version: "1.0"
+stage: fe-arch
+project: "cnn_soc"
+
+# ---------------------------------------------------------------------------
+# External interfaces — copied faithfully from fe-spec interfaces.yaml
+# (same IDs, same names, same widths; any change would be a spec change).
+# CLK-001 / RST-001 are clocks/resets, listed under clocks/resets below.
+# ---------------------------------------------------------------------------
+external_interfaces:
+  - id: IF-001
+    name: uart_tx_if
+    protocol: UART
+    role: output
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      baud_rate: 115200
+      bit_time_ns: 8680.0
+      framing: "8N1, LSB-first, 1 start + 8 data + 1 stop; idle-high mark between frames and during reset"
+    signals:
+      - {name: uart_tx, dir: output, width: 1, active: high, description: "Serial TX pin; idle-high (mark); 0 during start bit"}
+  - id: IF-002
+    name: led_status_if
+    protocol: GPIO
+    role: output
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget: {}
+    signals:
+      - {name: led, dir: output, width: 12, active: high, description: "= GPIO_OUT[11:0]; [9:0] one-hot pred / 0 on TRASH, [10] fail, [11] busy indicator"}
+  - id: IF-003
+    name: axil_master
+    protocol: AXI4-Lite
+    role: master
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      write_response_max_cycles: 1
+      read_response_max_cycles: 3
+    signals:
+      - {name: mem_axi_awvalid, dir: output, width: 1,  active: high, description: "Write address valid (issued together with W, picorv32.v:2773)"}
+      - {name: mem_axi_awready, dir: input,  width: 1,  active: high, description: "Write address accepted (combinational when idle)"}
+      - {name: mem_axi_awaddr,  dir: output, width: 32, active: high, description: "Write address (byte-addressed)"}
+      - {name: mem_axi_awprot,  dir: output, width: 3,  active: high, description: "Protection hint; ignored by all slaves"}
+      - {name: mem_axi_wvalid,  dir: output, width: 1,  active: high, description: "Write data valid (same cycle as AW)"}
+      - {name: mem_axi_wready,  dir: input,  width: 1,  active: high, description: "Write data accepted"}
+      - {name: mem_axi_wdata,   dir: output, width: 32, active: high, description: "Write data"}
+      - {name: mem_axi_wstrb,   dir: output, width: 4,  active: high, description: "Byte enables [3:0]"}
+      - {name: mem_axi_bvalid,  dir: input,  width: 1,  active: high, description: "Write response valid (1-cycle pulse; no BRESP)"}
+      - {name: mem_axi_bready,  dir: output, width: 1,  active: high, description: "Write response accepted"}
+      - {name: mem_axi_arvalid, dir: output, width: 1,  active: high, description: "Read address valid"}
+      - {name: mem_axi_arready, dir: input,  width: 1,  active: high, description: "Read address accepted"}
+      - {name: mem_axi_araddr,  dir: output, width: 32, active: high, description: "Read address"}
+      - {name: mem_axi_arprot,  dir: output, width: 3,  active: high, description: "3'b100 for instruction fetch (hint only; ignored)"}
+      - {name: mem_axi_rvalid,  dir: input,  width: 1,  active: high, description: "Read data valid (1-cycle pulse; no RRESP)"}
+      - {name: mem_axi_rready,  dir: output, width: 1,  active: high, description: "Read data accepted"}
+      - {name: mem_axi_rdata,   dir: input,  width: 32, active: high, description: "Read data"}
+  - id: IF-004
+    name: apb_bus
+    protocol: APB4
+    role: master
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      setup_cycles: 1
+      access_cycles: 1
+      read_response_max_cycles: 3
+    signals:
+      - {name: psel,    dir: output, width: 1,  active: high, description: "Peripheral select (one of two targets per access)"}
+      - {name: penable, dir: output, width: 1,  active: high, description: "APB ACCESS phase"}
+      - {name: pwrite,  dir: output, width: 1,  active: high, description: "1 = write"}
+      - {name: paddr,   dir: output, width: 12, active: high, description: "Byte address; [11:0] selects UART (+0x0000) vs GPIO (+0x1000)"}
+      - {name: pwdata,  dir: output, width: 32, active: high, description: "Write data"}
+      - {name: prdata,  dir: input,  width: 32, active: high, description: "Read data"}
+      - {name: pready,  dir: input,  width: 1,  active: high, description: "Transfer complete (targets are 0-wait-state)"}
+  - id: IF-005
+    name: cnn_core_if
+    protocol: custom
+    role: slave
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      park_response_max_cycles: 2
+    signals:
+      - {name: core_rst_n, dir: output, width: 1,  active: low,  description: "Core park: 0 = ctrl_fsm held in synchronous reset (ST_CONV1, img_idx=0); 1 = running"}
+      - {name: exp_label,  dir: output, width: 4,  active: high, description: "CNN_EXP[3:0]; drives ctrl_fsm.lrom_data[3:0] = {4'd0, exp_label}"}
+      - {name: img_waddr,  dir: output, width: 10, active: high, description: "Image buffer write address 0..783"}
+      - {name: img_wdata,  dir: output, width: 8,  active: high, description: "Image buffer write data (pixel)"}
+      - {name: img_we,     dir: output, width: 1,  active: high, description: "Image buffer write enable (CPU writes only while parked)"}
+      - {name: pred,       dir: input,  width: 4,  active: high, description: "lf_pred = ctrl_fsm.best_idx (ctrl_fsm.v:189)"}
+      - {name: conf,       dir: input,  width: 7,  active: high, description: "lf_conf = confidence 0..100 (ctrl_fsm.v:190)"}
+      - {name: verdict,    dir: input,  width: 2,  active: high, description: "lf_verdict 0/1/2 (ctrl_fsm.v:193)"}
+      - {name: busy,       dir: input,  width: 1,  active: high, description: "lc_busy (ctrl_fsm.v:187); exposed for observation (NOT the CNN_STATUS BUSY bit, which is sequencer state)"}
+      - {name: present,    dir: input,  width: 1,  active: high, description: "lc_present — exactly 1 cycle (ctrl_fsm.v:198); latch + re-park trigger"}
+
+clocks:
+  - id: CLK-001
+    name: clk
+    domain: CD_CORE
+    frequency_mhz: 100.0
+    period_ns: 10.000
+    source: external_pad
+    duty_cycle_pct: 50
+    jitter_ns: 0.100
+    notes: "Single domain; no generated clocks, no gating (REQ-028). ASM-002."
+
+resets:
+  - id: RST-001
+    name: rst_n
+    polarity: active_low
+    type: sync                      # fully synchronous — deviation from skill default (spec.md §2.1)
+    domain: CD_CORE
+    source: external_pad
+    min_assert_cycles: 2            # ASM-001; TB asserts >= 10 cycles
+    sequencing: "None needed: single domain, 0 CDC paths; fans out to picorv32 resetn and every slave."
+    notes: "No reset synchroniser. During reset: led==0, uart_tx==1 (G4). core_rst_n (BLK-009 park) is a functionally-gated synchronous reset of BLK-010, never async."
+
+# ---------------------------------------------------------------------------
+# Internal interfaces — new SoC-level block-to-block interfaces.
+# (The reused CNN leaves' interfaces are inherited verbatim from
+# cnn/arch/interface_defs.yaml, IFI-001..IFI-010 there — see arch.md §8;
+# they are NOT renumbered here.)
+# ---------------------------------------------------------------------------
+internal_interfaces:
+  - id: IFI-001
+    name: cnn_core_if
+    from_block: BLK-009
+    to_block: BLK-010
+    clock: clk
+    type: status              # control/status; no backpressure
+    semantics:
+      valid_may_depend_on_ready: false
+      data_stable_while_stalled: true
+      backpressure: false
+    signals:
+      - {name: core_rst_n, dir: from_source, width: 1,  active: low}
+      - {name: exp_label,  dir: from_source, width: 4}
+      - {name: img_waddr,  dir: from_source, width: 10}
+      - {name: img_wdata,  dir: from_source, width: 8}
+      - {name: img_we,     dir: from_source, width: 1,  active: high}
+      - {name: pred,       dir: from_sink,   width: 4}
+      - {name: conf,       dir: from_sink,   width: 7}
+      - {name: verdict,    dir: from_sink,   width: 2}
+      - {name: busy,       dir: from_sink,   width: 1,  active: high}
+      - {name: present,    dir: from_sink,   width: 1,  active: high}
+    notes: "Mirrors spec IF-005. core_rst_n = !(seq_park || park_reg) — synchronous, posedge-clk only."
+
+  - id: IFI-002
+    name: apb_bus
+    from_block: BLK-006
+    to_block: BLK-007, BLK-008
+    clock: clk
+    type: handshake_req_ack   # APB SETUP/ACCESS; targets 0-wait (pready always 1)
+    semantics:
+      valid_may_depend_on_ready: false
+      data_stable_while_stalled: true
+      backpressure: false
+    signals:
+      - {name: psel,    dir: from_source, width: 1,  active: high, description: "Per-target select (psel_uart / psel_gpio)"}
+      - {name: penable, dir: from_source, width: 1,  active: high}
+      - {name: pwrite,  dir: from_source, width: 1,  active: high}
+      - {name: paddr,   dir: from_source, width: 12}
+      - {name: pwdata,  dir: from_source, width: 32}
+      - {name: prdata,  dir: from_sink,   width: 32}
+      - {name: pready,  dir: from_sink,   width: 1,  active: high}
+    notes: "Mirrors spec IF-004. No PSTRB, no PSLVERR (subset per spec). PADDR[11:0]: +0x0000..+0x0007 UART, +0x1000..+0x1003 GPIO, else PRDATA=0/PREADY (bridge-side)."
+
+  - id: IFI-003
+    name: axil_slave_port
+    from_block: BLK-002
+    to_block: BLK-003, BLK-004, BLK-005, BLK-006, BLK-009   # pattern; also used by the interconnect's internal unmapped responder
+    clock: clk
+    type: valid_ready
+    semantics:
+      valid_may_depend_on_ready: true    # adapter holds request (awvalid/wvalid/arvalid) until accept — standard AXI
+      data_stable_while_stalled: true
+      backpressure: true
+    signals:
+      - {name: awvalid, dir: from_source, width: 1,  active: high}
+      - {name: awready, dir: from_sink,   width: 1,  active: high}
+      - {name: awaddr,  dir: from_source, width: 32}
+      - {name: awprot,  dir: from_source, width: 3}
+      - {name: wvalid,  dir: from_source, width: 1,  active: high}
+      - {name: wready,  dir: from_sink,   width: 1,  active: high}
+      - {name: wdata,   dir: from_source, width: 32}
+      - {name: wstrb,   dir: from_source, width: 4}
+      - {name: bvalid,  dir: from_sink,   width: 1,  active: high, description: "1-cycle pulse, exactly 1 cycle after the write-accept cycle"}
+      - {name: bready,  dir: from_source, width: 1,  active: high}
+      - {name: arvalid, dir: from_source, width: 1,  active: high}
+      - {name: arready, dir: from_sink,   width: 1,  active: high}
+      - {name: araddr,  dir: from_source, width: 32}
+      - {name: arprot,  dir: from_source, width: 3}
+      - {name: rvalid,  dir: from_sink,   width: 1,  active: high, description: "1-cycle pulse; memory/register slaves: 2 cycles after the arvalid&&arready cycle (accept+2, see arch.md §2)"}
+      - {name: rready,  dir: from_source, width: 1,  active: high}
+      - {name: rdata,   dir: from_sink,   width: 32}
+    notes: "Instantiated 5x with per-slave prefixes: boot_, sram_, vec_, apb_, cnn_ (+ internal unmapped responder, rdata constant 0). Response pattern = FSM-002 (arch.md §6.2)."
+
+  - id: IFI-004
+    name: cpu_axil_master
+    from_block: BLK-012
+    to_block: BLK-002
+    clock: clk
+    type: valid_ready
+    semantics:
+      valid_may_depend_on_ready: true
+      data_stable_while_stalled: true
+      backpressure: true
+    signals:
+      - {name: mem_axi_awvalid, dir: from_source, width: 1}
+      - {name: mem_axi_awready, dir: from_sink,   width: 1}
+      - {name: mem_axi_awaddr,  dir: from_source, width: 32}
+      - {name: mem_axi_awprot,  dir: from_source, width: 3}
+      - {name: mem_axi_wvalid,  dir: from_source, width: 1}
+      - {name: mem_axi_wready,  dir: from_sink,   width: 1}
+      - {name: mem_axi_wdata,   dir: from_source, width: 32}
+      - {name: mem_axi_wstrb,   dir: from_source, width: 4}
+      - {name: mem_axi_bvalid,  dir: from_sink,   width: 1}
+      - {name: mem_axi_bready,  dir: from_source, width: 1}
+      - {name: mem_axi_arvalid, dir: from_source, width: 1}
+      - {name: mem_axi_arready, dir: from_sink,   width: 1}
+      - {name: mem_axi_araddr,  dir: from_source, width: 32}
+      - {name: mem_axi_arprot,  dir: from_source, width: 3}
+      - {name: mem_axi_rvalid,  dir: from_sink,   width: 1}
+      - {name: mem_axi_rready,  dir: from_source, width: 1}
+      - {name: mem_axi_rdata,   dir: from_sink,   width: 32}
+    notes: "Exact picorv32_axi port names (picorv32.v:2549-2569) — connect 1:1 to BLK-002. Simplified AXI: no BRESP/RRESP/ID."
+
+  - id: IFI-005
+    name: utx_port
+    from_block: BLK-007
+    to_block: BLK-013
+    clock: clk
+    type: valid_ready
+    semantics:
+      valid_may_depend_on_ready: false
+      data_stable_while_stalled: true
+      backpressure: true
+    signals:
+      - {name: utx_data,  dir: from_source, width: 8}
+      - {name: utx_valid, dir: from_source, width: 1,  active: high, description: "1-cycle pulse per UART_TX write (fire-and-forget; dropped if uart_tx busy — REQ-014)"}
+      - {name: utx_ready, dir: from_sink,   width: 1,  active: high}
+      - {name: utx_busy,  dir: from_sink,   width: 1,  active: high}
+    notes: "uart_tx unchanged (cnn/rtl/uart_tx.v, IFI-007 in cnn arch). The shell is deliberately NOT a hold-until-ready producer (uart_line_fmt was); drop-on-busy is the documented REQ-014 behaviour."
+
+# ---------------------------------------------------------------------------
+# Inherited leaf interfaces (verbatim from cnn/arch/interface_defs.yaml — do NOT
+# renumber). These are the connection contracts for BLK-014..BLK-019.
+# ---------------------------------------------------------------------------
+reused_leaf_interfaces:
+  - {id: cnn-IFI-001, name: mac_port,        blocks: [BLK-014, BLK-015], description: "mac_a/mac_b/mac_bias_ld/mac_bias/mac_acc_en/mac_z/mac_h"}
+  - {id: cnn-IFI-002, name: lut_port,        blocks: [BLK-014, BLK-019], description: "addr=mac_z[15:0] (structural), rdata=lut_data"}
+  - {id: cnn-IFI-003, name: weight_rom_port, blocks: [BLK-014, BLK-018], description: "wrom_addr/wrom_data"}
+  - {id: cnn-IFI-004, name: image_rom_port,  blocks: [BLK-014, BLK-011], description: "irom_addr[9:0]/irom_data (now the image_buffer read port)"}
+  - {id: cnn-IFI-005, name: label_rom_port,  blocks: [BLK-014, BLK-009], description: "lrom_addr (open) / lrom_data = {4'd0, exp_label}"}
+  - {id: cnn-IFI-006, name: fm_ram_port,     blocks: [BLK-014, BLK-017], description: "fmram_addr/wdata/we/rdata"}
+  - {id: cnn-IFI-007, name: uart_tx_port,    blocks: [BLK-007, BLK-013], description: "utx valid/ready (shell = pulse producer, see IFI-005)"}
+  - {id: cnn-IFI-008, name: led_ctrl_port,   blocks: [BLK-014, BLK-001], description: "lc_pred/lc_verdict/lc_present/lc_busy (led_ctrl NOT instantiated; lc_* exposed via BLK-010 result ports)"}
+  - {id: cnn-IFI-009, name: uart_line_fmt_port, blocks: [BLK-014, BLK-010], description: "lf_start/lf_pred/lf_conf/lf_exp/lf_idx/lf_verdict/lf_done (lf_done tied 1; uart_line_fmt NOT instantiated)"}
+  - {id: cnn-IFI-010, name: win_addr_gen_port, blocks: [BLK-014, BLK-016], description: "layer_sel + loop counters + all address outputs + tap_valid"}
+
+# ---------------------------------------------------------------------------
+# Blocks (arch_manifest module_list source of truth)
+# ---------------------------------------------------------------------------
+blocks:
+  - {id: BLK-001,  module: cnn_soc,             clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: [{name: UART_CLK_DIV, default: 868, range: "2..65535"}, {name: BOOT_HEX_FILE, default: "sw/firmware.hex"}, {name: IMAGES_HEX_FILE, default: "../cnn/arch/golden_model/images.hex"}, {name: LABELS_HEX_FILE, default: "../cnn/arch/golden_model/labels.hex"}, {name: WEIGHTS_HEX_FILE, default: "../cnn/arch/golden_model/weights.hex"}, {name: LUT_HEX_FILE, default: "../cnn/rtl/sigmoid_lut.hex"}]}
+  - {id: BLK-002,  module: axi_lite_interconnect, clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: []}
+  - {id: BLK-003,  module: bootrom,              clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: [{name: BOOT_HEX_FILE, default: "sw/firmware.hex"}]}
+  - {id: BLK-004,  module: sram,                 clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: []}
+  - {id: BLK-005,  module: vec_rom,              clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: [{name: IMAGES_HEX_FILE, default: "../cnn/arch/golden_model/images.hex"}, {name: LABELS_HEX_FILE, default: "../cnn/arch/golden_model/labels.hex"}]}
+  - {id: BLK-006,  module: axi2apb,              clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: []}
+  - {id: BLK-007,  module: apb_uart,             clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: [{name: UART_CLK_DIV, default: 868, range: "2..65535"}]}
+  - {id: BLK-008,  module: apb_gpio,             clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: []}
+  - {id: BLK-009,  module: cnn_axi_slave,        clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: []}
+  - {id: BLK-010,  module: cnn_infer,            clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: [{name: WEIGHTS_HEX_FILE, default: "../cnn/arch/golden_model/weights.hex"}, {name: LUT_HEX_FILE, default: "../cnn/rtl/sigmoid_lut.hex"}]}
+  - {id: BLK-011,  module: image_buffer,         clock_domain: CD_CORE, reset: rst_n, source: custom, parameters: []}
+  - {id: BLK-012,  module: picorv32_axi,         clock_domain: CD_CORE, reset: rst_n, source: ip,      repo: "local: skill-tests/ex6/rtl/picorv32.v", commit: null, license: ISC, status: verified, parameters: [{name: PROGADDR_RESET, default: 32'h0000_0000}, {name: STACKADDR, default: 32'h0003_0000}, {name: ENABLE_MUL, default: 0}, {name: ENABLE_DIV, default: 0}, {name: ENABLE_FAST_MUL, default: 0}, {name: COMPRESSED_ISA, default: 0}, {name: ENABLE_IRQ, default: 0}, {name: ENABLE_COUNTERS, default: 0}, {name: ENABLE_COUNTERS64, default: 0}, {name: CATCH_MISALIGN, default: 0}, {name: CATCH_ILLINSN, default: 0}, {name: ENABLE_PCPI, default: 0}]}
+  - {id: BLK-013,  module: uart_tx,              clock_domain: CD_CORE, reset: rst_n, source: ip,      repo: "local: cnn/rtl/uart_tx.v", commit: null, license: project-internal, status: verified, parameters: [{name: CLK_DIV, default: 868, range: "2..65535"}]}
+  - {id: BLK-014,  module: ctrl_fsm,             clock_domain: CD_CORE, reset: rst_n, source: ip,      repo: "local: cnn/rtl/ctrl_fsm.v", commit: null, license: project-internal, status: verified, parameters: []}
+  - {id: BLK-015,  module: mac_datapath,         clock_domain: CD_CORE, reset: rst_n, source: ip,      repo: "local: cnn/rtl/mac_datapath.v", commit: null, license: project-internal, status: verified, parameters: []}
+  - {id: BLK-016,  module: win_addr_gen,         clock_domain: CD_CORE, reset: rst_n, source: ip,      repo: "local: cnn/rtl/win_addr_gen.v", commit: null, license: project-internal, status: verified, parameters: []}
+  - {id: BLK-017,  module: fm_ram,               clock_domain: CD_CORE, reset: rst_n, source: ip,      repo: "local: cnn/rtl/fm_ram.v", commit: null, license: project-internal, status: verified, parameters: []}
+  - {id: BLK-018,  module: weight_rom,           clock_domain: CD_CORE, reset: rst_n, source: ip,      repo: "local: cnn/rtl/weight_rom.v", commit: null, license: project-internal, status: verified, parameters: [{name: WEIGHTS_HEX_FILE, default: "../cnn/arch/golden_model/weights.hex"}]}
+  - {id: BLK-019,  module: sigmoid_lut,          clock_domain: CD_CORE, reset: rst_n, source: ip,      repo: "local: cnn/rtl/sigmoid_lut.v", commit: null, license: project-internal, status: verified, parameters: [{name: LUT_HEX_FILE, default: "../cnn/rtl/sigmoid_lut.hex"}]}

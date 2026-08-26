@@ -1,0 +1,57 @@
+%% block_diagram.mmd — cnn_soc (BLK-001 top; single domain CD_CORE, 100 MHz, fully-synchronous rst_n)
+%% Solid arrows = data; dotted arrows = control. 0 CDC crossings (single domain).
+flowchart TB
+    TOP["BLK-001 cnn_soc<br/>(top: clk, rst_n, uart_tx, led[11:0])"]
+
+    subgraph CD_CORE["CD_CORE — clk 100 MHz / rst_n (fully synchronous)"]
+        CPU["BLK-012<br/>picorv32_axi<br/>(RV32I + simplified AXI4-Lite master)"]
+        IC["BLK-002<br/>axi_lite_interconnect<br/>(comb decode + mux + unmapped responder)"]
+
+        BOOT["BLK-003<br/>bootrom<br/>4 KB RO @0x0000_0000<br/>MEM-001"]
+        SRAM["BLK-004<br/>sram<br/>128 KB RW @0x0001_0000<br/>MEM-002"]
+        VEC["BLK-005<br/>vec_rom<br/>78,500 B RO @0x1000_0000<br/>MEM-003"]
+        BRDG["BLK-006<br/>axi2apb<br/>(FSM-001)"]
+        CNN["BLK-009<br/>cnn_axi_slave<br/>(FSM-002, FSM-003)"]
+
+        APBU["BLK-007<br/>apb_uart"]
+        APBG["BLK-008<br/>apb_gpio"]
+        UTX["BLK-013<br/>uart_tx<br/>(reused, CLK_DIV=868)"]
+
+        subgraph INFER["BLK-010 cnn_infer (rebuilt from verified leaves)"]
+            IBUF["BLK-011<br/>image_buffer<br/>784x8<br/>MEM-004"]
+            CF["BLK-014<br/>ctrl_fsm<br/>(reused)"]
+            MAC["BLK-015<br/>mac_datapath<br/>(reused)"]
+            WAG["BLK-016<br/>win_addr_gen<br/>(reused)"]
+            FMR["BLK-017<br/>fm_ram<br/>MEM-007 (reused)"]
+            WROM["BLK-018<br/>weight_rom<br/>MEM-005 (reused)"]
+            LUT["BLK-019<br/>sigmoid_lut<br/>MEM-006 (reused)"]
+        end
+    end
+
+    CPU -->|"IFI-004 axil master (AW+W together, no BRESP/RRESP)"| IC
+    IC -->|"IFI-003 boot_"| BOOT
+    IC -->|"IFI-003 sram_"| SRAM
+    IC -->|"IFI-003 vec_"| VEC
+    IC -->|"IFI-003 apb_"| BRDG
+    IC -->|"IFI-003 cnn_"| CNN
+    IC -.->|"unmapped: read 0 / write ignored, completes"| TOP
+
+    BRDG -->|"IFI-002 apb (psel_uart)"| APBU
+    BRDG -->|"IFI-002 apb (psel_gpio)"| APBG
+    APBU -->|"IFI-005 utx valid/ready"| UTX
+
+    CNN -->|"IFI-001 cnn_core_if (park/start, exp_label, img write port)"| INFER
+    CNN -.->|"present/pred/conf/verdict/busy"| INFER
+
+    IBUF -->|"irom_data (1-cyc reg read)"| CF
+    WROM -->|"wrom_data"| CF
+    FMR <-->|"fmram r/w"| CF
+    CF -->|"mac_a/mac_b/bias/acc_en"| MAC
+    MAC -->|"mac_z (structural addr)"| LUT
+    LUT -->|"lut_data"| CF
+    MAC -->|"mac_h (ReLU)"| FMR
+    CF -->|"layer_sel + loop counters"| WAG
+    WAG -->|"wrom/irom/fmram addrs + tap_valid"| CF
+
+    UTX -->|"uart_tx pin"| TOP
+    APBG -->|"led[11:0]"| TOP

@@ -1,0 +1,90 @@
+schema_version: "1.0"
+stage: fe-arch
+generated_for: fe-rtl
+project_name: "cnn_soc"
+source_spec: {manifest: spec/spec_manifest.yaml, commit: "9b7b10e", verified: true}
+technology: {pdk: fpga_generic, node_nm: null, stdcell_lib: null, core_voltage_v: null}   # DEVIATION — spec.md §2.1, arch.md §2 (cnn precedent); no Sky130 artifacts anywhere
+constraints: {rtl_language: verilog-2001, dft: none, custom_analog: false}
+reset_deviation: "Fully SYNCHRONOUS active-low rst_n (RST-001, REQ-029) — NOT async-assert/sync-deassert; every flop: always @(posedge clk) if (!rst_n) ... (rtl_coding_guidelines.md §3)."
+
+artifacts:
+  - {file: arch.md, present: true}
+  - {file: block_diagram.mmd, present: true}
+  - {file: fsm_diagrams.mmd, present: true}
+  - {file: interface_defs.yaml, present: true}
+  - {file: cdc_plan.md, present: true}
+  - {file: power_plan.md, present: true}
+  - {file: rtl_coding_guidelines.md, present: true}
+
+# Golden-model deviation: the golden package is FROZEN and pre-existing (cnn). Binding
+# instruction: arch references it only; NO golden_model/ files are authored this stage
+# (identical precedent: cnn/arch/arch.md §11). fe-rtl consumes the frozen files directly.
+frozen_golden_reference:
+  location: "cnn/arch/golden_model/ (weights.hex, images.hex, labels.hex, expected.hex, expected_outputs.txt) + cnn/rtl/sigmoid_lut.hex"
+  frozen: true
+  granularity: transaction
+  demo_set: "expected_outputs.txt lines 1..100 (G1); expected.hex words 0..399 (G2)"
+  build_command: "gcc -std=c99 -O2 -Wall -Wextra -o gm arch/golden_model/golden_ref_model.c && ./gm .   # run from cnn/ root; NOT executed by fe-arch"
+  executed_by_skill: false
+  note: "Do not regenerate, edit, or relocate. fe-rtl's SoC TB loads images.hex/labels.hex via vec_rom parameters and diffs against expected_outputs.txt / expected.hex (spec verification_plan.md §5 G1/G2)."
+
+module_list:                    # fe-rtl must produce exactly these (11 custom + 8 reused verbatim)
+  - {block: BLK-001, module: cnn_soc,             source: custom, clock: clk, reset: rst_n, params: [UART_CLK_DIV, BOOT_HEX_FILE, IMAGES_HEX_FILE, LABELS_HEX_FILE, WEIGHTS_HEX_FILE, LUT_HEX_FILE]}
+  - {block: BLK-002, module: axi_lite_interconnect, source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-003, module: bootrom,             source: custom, clock: clk, reset: rst_n, params: [BOOT_HEX_FILE]}
+  - {block: BLK-004, module: sram,                source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-005, module: vec_rom,             source: custom, clock: clk, reset: rst_n, params: [IMAGES_HEX_FILE, LABELS_HEX_FILE]}
+  - {block: BLK-006, module: axi2apb,             source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-007, module: apb_uart,            source: custom, clock: clk, reset: rst_n, params: [UART_CLK_DIV]}
+  - {block: BLK-008, module: apb_gpio,            source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-009, module: cnn_axi_slave,       source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-010, module: cnn_infer,           source: custom, clock: clk, reset: rst_n, params: [WEIGHTS_HEX_FILE, LUT_HEX_FILE]}
+  - {block: BLK-011, module: image_buffer,        source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-012, module: picorv32_axi,        source: ip, clock: clk, reset: rst_n, repo: "local: skill-tests/ex6/rtl/picorv32.v", commit: null, license: ISC, status: verified, verbatim: true, params: [PROGADDR_RESET, STACKADDR, ENABLE_MUL, ENABLE_DIV, ENABLE_FAST_MUL, COMPRESSED_ISA, ENABLE_IRQ, ENABLE_COUNTERS, ENABLE_COUNTERS64, CATCH_MISALIGN, CATCH_ILLINSN, ENABLE_PCPI]}
+  - {block: BLK-013, module: uart_tx,             source: ip, clock: clk, reset: rst_n, repo: "local: cnn/rtl/uart_tx.v", commit: null, license: project-internal, status: verified, verbatim: true, params: [CLK_DIV]}
+  - {block: BLK-014, module: ctrl_fsm,            source: ip, clock: clk, reset: rst_n, repo: "local: cnn/rtl/ctrl_fsm.v", commit: null, license: project-internal, status: verified, verbatim: true, params: []}
+  - {block: BLK-015, module: mac_datapath,        source: ip, clock: clk, reset: rst_n, repo: "local: cnn/rtl/mac_datapath.v", commit: null, license: project-internal, status: verified, verbatim: true, params: []}
+  - {block: BLK-016, module: win_addr_gen,        source: ip, clock: clk, reset: rst_n, repo: "local: cnn/rtl/win_addr_gen.v", commit: null, license: project-internal, status: verified, verbatim: true, params: []}
+  - {block: BLK-017, module: fm_ram,              source: ip, clock: clk, reset: rst_n, repo: "local: cnn/rtl/fm_ram.v", commit: null, license: project-internal, status: verified, verbatim: true, params: []}
+  - {block: BLK-018, module: weight_rom,          source: ip, clock: clk, reset: rst_n, repo: "local: cnn/rtl/weight_rom.v", commit: null, license: project-internal, status: verified, verbatim: true, params: [WEIGHTS_HEX_FILE]}
+  - {block: BLK-019, module: sigmoid_lut,         source: ip, clock: clk, reset: rst_n, repo: "local: cnn/rtl/sigmoid_lut.v", commit: null, license: project-internal, status: verified, verbatim: true, params: [LUT_HEX_FILE]}
+
+filelist_notes: >
+  SoC filelist.f must include: the 11 new cnn_soc/rtl/*.v files; the 7 reused leaves
+  cnn/rtl/{ctrl_fsm,mac_datapath,win_addr_gen,fm_ram,weight_rom,sigmoid_lut,uart_tx}.v;
+  skill-tests/ex6/rtl/picorv32.v; and include path -I cnn/rtl so the reused files' `includes
+  (rtl/cnn_defs.vh, rtl/mnist_npu_defs.vh) resolve. NOT included: cnn/rtl/{image_rom,label_rom,
+  uart_line_fmt,led_ctrl,cnn_npu}.v (not instantiated — REQ-022). Compile gate: iverilog -g2001.
+
+clock_domains:
+  - {id: CLK-001, name: clk, domain: CD_CORE, period_ns: 10.000, async_with: []}
+cdc_paths: []
+
+memories:
+  - {id: MEM-001, instance: bootrom,       block: BLK-003, depth: 4096,  width: 8,  init: "BOOT_HEX_FILE (sw/firmware.hex)"}
+  - {id: MEM-002, instance: sram,          block: BLK-004, depth: 32768, width: 32, init: none, note: "stack-only; contents not reset (REQ-004)"}
+  - {id: MEM-003, instance: vec_rom,       block: BLK-005, depth: 78500, width: 8,  init: "images.hex [0..78399] + labels.hex [78400..78499]"}
+  - {id: MEM-004, instance: image_buffer,  block: BLK-011, depth: 784,   width: 8,  init: none, note: "CPU-written before each START"}
+  - {id: MEM-005, instance: weight_rom,    block: BLK-018, depth: 26698, width: 16, init: "weights.hex (frozen)", reused: true}
+  - {id: MEM-006, instance: sigmoid_lut,   block: BLK-019, depth: 65536, width: 8,  init: "sigmoid_lut.hex (frozen)", reused: true}
+  - {id: MEM-007, instance: fm_ram,        block: BLK-017, depth: 7840,  width: 16, init: none, reused: true}
+
+counts:
+  blocks: 19              # 11 custom + 8 reused ip
+  fsms: 3                 # FSM-001 axi2apb, FSM-002 slave accept, FSM-003 sequencer (leaf FSMs inherited from cnn arch)
+  internal_interfaces: 5  # IFI-001..005 (+ 10 cnn leaf interfaces inherited, cnn-IFI-001..010 in interface_defs.yaml)
+  memories: 7
+  cdc_paths: 0
+  ip_reused: 8
+  blackboxes: 0
+
+review_gate:
+  all_must_requirements_mapped: true
+  every_block_has_clock_and_reset: true
+  every_fsm_has_full_transition_table: true
+  every_cdc_has_mechanism_and_module: true     # trivially: 0 crossings, stated in cdc_plan.md
+  no_dft_structures: true
+  no_systemverilog_in_examples: true
+  golden_model_deterministic: true             # frozen pre-existing package, referenced only (deviation note above)
+
+open_issues: []

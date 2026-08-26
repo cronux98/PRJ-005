@@ -1,0 +1,30 @@
+%% fsm_diagrams.mmd — cnn_soc new FSMs (reused-leaf FSMs inherited from cnn/arch/arch.md §6)
+%% All: binary encoding, fully-synchronous active-low reset (rst_n); illegal states recover
+%% to the reset state via default: (transition tables in arch.md §6, binding for fe-rtl).
+
+%% FSM-001 : axi2apb bridge (BLK-006)  — reset state = ST_IDLE
+stateDiagram-v2
+    [*] --> ST_IDLE
+    ST_IDLE --> ST_SETUP : awvalid && wvalid || arvalid
+    ST_SETUP --> ST_ACCESS : always
+    ST_ACCESS --> ST_RESP : pready
+    ST_ACCESS --> ST_ACCESS : !pready
+    ST_RESP --> ST_IDLE : always
+
+%% FSM-002 : axil_slave_accept (BLK-003/004/005/009 + unmapped responder)  — reset state = ST_IDLE
+stateDiagram-v2
+    [*] --> ST_IDLE
+    ST_IDLE --> ST_WRESP : awvalid && wvalid
+    ST_IDLE --> ST_RRESP : arvalid
+    ST_WRESP --> ST_IDLE : always
+    ST_RRESP --> ST_RRESP_DLY : always
+    ST_RRESP_DLY --> ST_IDLE : always
+
+%% FSM-003 : single-shot sequencer (BLK-009)  — reset state = ST_PARK
+stateDiagram-v2
+    [*] --> ST_PARK
+    ST_PARK --> ST_RUN : start_strobe && !park_reg
+    ST_RUN --> ST_PARK : park_write
+    ST_RUN --> ST_DONE : present
+    ST_DONE --> ST_PARK : park_write
+    ST_DONE --> ST_RUN : start_strobe && !park_reg
