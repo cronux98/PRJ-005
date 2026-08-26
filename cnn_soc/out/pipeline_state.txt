@@ -1,8 +1,8 @@
-cnn_soc pipeline state — 2026-08-26 15:26Z
+cnn_soc pipeline state — 2026-08-26 15:47Z
 Rinri: "proceed till the end, review in morning. Dispatch architect + frontend. Main does not do the work."
 P0 fe-spec     : DONE (9b7b10e, verified)
 P1 fe-arch     : DONE (b26068d, verified — 8/8 artifacts, YAML valid, all 33 REQs mapped, zero orphans)
-P2 fe-rtl      : DONE (verified — architect re-fixed all 3 blockers + 4 latent defects; main gate `iverilog -g2005 -f filelist.f` EXIT 0 zero warn @ 15:22Z, `-s cnn_soc` form EXIT 0. img_mem replaces reserved `buf` confirmed. 13 rtl + 9 ip files. Committing now, then dispatch P3.)
-P3 fe-firmware : DISPATCHED to frontend @ 15:26Z (C POST firmware -> hex builds)
-P4 SoC verify  : pending (frontend, G1-G5)
+P2 fe-rtl      : DONE (753e475, verified — architect re-fixed all 3 blockers + 4 latent defects; main gate `iverilog -g2005 -f filelist.f` EXIT 0 zero warn @ 15:22Z, `-s cnn_soc` form EXIT 0. img_mem replaces reserved `buf` confirmed. 13 rtl + 9 ip files.)
+P3 fe-firmware : DONE (9802b11, verified @ 15:37Z — rv32i/ilp32 -Os build EXIT 0 zero warn; image 1752 B <= 4 KB bootrom; RV32I audit clean, no M-ext; deterministic rebuild md5 e3e9858…; 6 POST tests + P4 scoreboard hooks @ SRAM 0x0001_0000)
+P4 SoC verify  : RUNNING (frontend, G1-G5) — cocotb TB in progress, tb/test_cnn_soc.py created 15:47Z; full-SoC iverilog -g2012 -s cnn_soc compile + $readmemh path handling validated by agent; no G-gate PASS results yet
 P5 evidence    : pending (main: commit + WORKLOG + memory + morning report)
