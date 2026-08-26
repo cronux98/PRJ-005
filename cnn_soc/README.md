@@ -9,7 +9,9 @@ Replaces the `$readmemh` + testbench-only flow with a real boot flow.
 
 ## Proposed architecture (v0 draft)
 
-- **CPU:** picorv32 (RV32IMC, mem_valid/mem_ready native bus → AXI4-Lite master adapter)
+- **CPU:** picorv32 **with its built-in `picorv32_axi` wrapper** (AXI4-Lite
+  master interface included in picorv32.v itself — no custom adapter needed;
+  source: skill-tests/ex6/rtl/picorv32.v L2517, `picorv32_axi_adapter` L2731)
 - **Interconnect:** AXI4-Lite (single master: CPU). Full AXI4 deferred until DMA (v2).
 - **AXI slaves:**
   - bootrom (4 KB, reset vector + boot stub / firmware)
@@ -45,6 +47,8 @@ CNN unit TB (tb_mnist_top/cocotb) stays as the IP-level gate.
 ## Reuse
 
 - ex6 already proved: picorv32 + SRAM + UART + GPIO + firmware boot (PASS all targets)
+- picorv32_axi / picorv32_axi_adapter: built-in AXI4-Lite master (picorv32.v L2517/L2731)
 - cnn RTL + golden: verified bit-exact
 - fe-firmware skill: hex build/preload/POST patterns
-- NEW: AXI4-Lite interconnect + AXI2APB bridge + CNN AXI slave wrapper
+- **NEW RTL:** AXI4-Lite decoder/mux + AXI2APB bridge + CNN AXI slave wrapper
+  + APB UART/GPIO wrappers (CPU side comes free via picorv32_axi)
