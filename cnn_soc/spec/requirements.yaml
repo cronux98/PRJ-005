@@ -1,0 +1,383 @@
+schema_version: "1.0"
+stage: fe-spec
+project:
+  name: "cnn_soc"
+  technology: fpga_generic     # DEVIATION from sky130 — see spec.md §2.1 (project precedent, PLAN.md Decision Record)
+  node_nm: null
+  rtl_language: verilog-2001
+  dft: none
+  custom_analog: false
+
+requirements:
+  - id: REQ-001
+    title: "SoC scope: CPU + AXI interconnect + 5 regions + APB peripherals + CNN core"
+    category: functional
+    description: "cnn_soc shall integrate the picorv32_axi RV32I CPU, a single-master simplified AXI4-Lite interconnect, five slave regions (bootrom, SRAM, vec_rom, AXI2APB, cnn_axi_slave), two APB peripherals (UART, GPIO/LED), and the verified CNN inference core, such that firmware booting from the bootrom feeds 100 images one at a time and produces the golden UART stream and LED patterns."
+    priority: must
+    measurable_target: "100-image demo completes; G1/G2/G3 gates pass (verification_plan.md §5)"
+    source: user_brief
+    rationale: "Milestone M9 SoC integration (ROADMAP.md:82,91-120); PLAN.md §1/§2"
+    verification: {method: simulation, items: [VP-TOP-002, VP-TOP-006]}
+    status: agreed
+  - id: REQ-002
+    title: "CPU = picorv32_axi verbatim, fixed parameters"
+    category: interface
+    description: "cnn_soc shall instantiate picorv32_axi (skill-tests/ex6/rtl/picorv32.v:2517) verbatim with PROGADDR_RESET=32'h0000_0000, STACKADDR=32'h0003_0000, ENABLE_MUL=0, ENABLE_DIV=0, ENABLE_FAST_MUL=0, COMPRESSED_ISA=0, ENABLE_IRQ=0, ENABLE_COUNTERS=0, ENABLE_COUNTERS64=0, CATCH_MISALIGN=0, CATCH_ILLINSN=0, ENABLE_PCPI=0; all other parameters at file defaults. PCPI inputs tied off (pcpi_wr=0, pcpi_rd=0, pcpi_wait=0, pcpi_ready=0), irq=32'd0."
+    priority: must
+    measurable_target: "Instantiation parameter list matches exactly (inspection); boots at 0x0000_0000"
+    source: user_brief
+    rationale: "PLAN.md §5; README.md:12-14; no custom bus"
+    verification: {method: inspection, items: [VP-CPU-001]}
+    status: agreed
+  - id: REQ-003
+    title: "Boot flow: fetch at 0x0, boot stub, execute in place"
+    category: functional
+    description: "After rst_n release the CPU shall fetch its first instruction from address 0x0000_0000 (bootrom) and execute the boot stub, which sets sp=0x0003_0000 and calls main(); firmware .text and .rodata shall execute in place from the bootrom with no copy-to-SRAM step."
+    priority: must
+    measurable_target: "First fetch at 0x0000_0000; main() reached; first UART line within REQ-031 budget"
+    source: user_brief
+    rationale: "PLAN.md §8 (bootrom-bake, OQ2); fe-firmware/SKILL.md:56-58,61-62"
+    verification: {method: simulation, items: [VP-TOP-001, VP-TOP-006]}
+    status: agreed
+  - id: REQ-004
+    title: "Firmware is a pure-ROM image that fits the 4 KB bootrom"
+    category: functional
+    description: "The v1 firmware shall be a pure-ROM image: exactly 0 bytes of .data and 0 bytes of .bss (all constants in .rodata, all variables on the stack), and .text+.rodata shall link within the 4 KB bootrom (size <= 0x1000 bytes)."
+    priority: must
+    measurable_target: "linker map: .data size==0, .bss size==0, .text+.rodata <= 0x1000 bytes"
+    source: derived
+    rationale: "PLAN.md §8 zero-data pattern (fe-firmware/SKILL.md:139-141); R4 bootrom-size risk"
+    verification: {method: simulation, items: [VP-FW-001, VP-BOOT-001]}
+    status: agreed
+  - id: REQ-005
+    title: "Simplified AXI4-Lite response contract (no BRESP/RRESP, no hangs)"
+    category: interface
+    description: "The CPU shall use the picorv32_axi built-in simplified AXI4-Lite master (adapter picorv32.v:2731): AW and W issued together (picorv32.v:2773,2781), completion = bvalid||rvalid (picorv32.v:2785), no BRESP/RRESP/ID signals. Every slave shall accept a transaction combinationally when idle and assert a 1-cycle response: bvalid exactly 1 cycle after the write-accept cycle; rvalid with rdata exactly 1 cycle after the read-accept cycle for memory/register slaves and no later than 3 cycles after the accept cycle for the AXI2APB bridge; slaves shall never wait for bready/rready."
+    priority: must
+    measurable_target: "All read/write transactions across all regions complete; 0 hangs; response timing as specified"
+    source: user_brief
+    rationale: "PLAN.md R2 (adapter contract); README.md:13"
+    verification: {method: simulation, items: [VP-IC-001, VP-APB-001]}
+    status: agreed
+  - id: REQ-006
+    title: "Combinational address decode with never-hang unmapped handling"
+    category: interface
+    description: "The interconnect shall decode transactions combinationally on addr[31:28] into exactly the five regions of REQ-007; any address outside the five regions (including unmapped sub-ranges of window 0x0) shall complete with rdata=0 for reads, no write for writes, and the same response timing as a memory slave."
+    priority: must
+    measurable_target: "Directed test over every window incl. all unmapped windows: 0 responses hang, reads return 0"
+    source: user_brief
+    rationale: "PLAN.md §3 decode rule; R2"
+    verification: {method: simulation, items: [VP-IC-001]}
+    status: agreed
+  - id: REQ-007
+    title: "Memory map: five regions with exact bases and sizes"
+    category: interface
+    description: "The five regions shall be: bootrom 0x0000_0000 (4 KB, 0x0000_0000..0x0000_0FFF), SRAM 0x0001_0000 (128 KB, 0x0001_0000..0x0002_FFFF), vec_rom 0x1000_0000 (78,500 B, 0x1000_0000..0x1001_32A3), AXI2APB window 0x4000_0000, cnn_axi_slave window 0x5000_0000. Within window 0x0 only the bootrom and SRAM ranges are mapped."
+    priority: must
+    measurable_target: "Decode table exactly as specified (directed test on boundary addresses)"
+    source: user_brief
+    rationale: "PLAN.md §3 (OQ5: SRAM at 0x0001_0000)"
+    verification: {method: simulation, items: [VP-IC-001]}
+    status: agreed
+  - id: REQ-008
+    title: "bootrom: 4 KB RO/exec, $readmemh BOOT_HEX_FILE, 1-cycle read"
+    category: interface
+    description: "bootrom shall be 4 KB read-only memory at 0x0000_0000 with a 1-cycle registered read latency, initialised by $readmemh from the BOOT_HEX_FILE parameter (firmware hex, baked); writes shall be ignored."
+    priority: must
+    measurable_target: "All 4 KB read back == BOOT_HEX_FILE contents; write has no effect; rvalid 1 cycle after accept"
+    source: user_brief
+    rationale: "PLAN.md §3, §8 (OQ2 bootrom-bake); fe-firmware/SKILL.md:56-58"
+    verification: {method: simulation, items: [VP-BOOT-001]}
+    status: agreed
+  - id: REQ-009
+    title: "SRAM: 128 KB RW with wstrb byte-enables at 0x0001_0000"
+    category: interface
+    description: "SRAM shall be 128 KB read/write memory at 0x0001_0000 (0x0001_0000..0x0002_FFFF) with a 1-cycle registered read latency, honouring wstrb byte-enables; it holds the firmware stack, top at 0x0003_0000 (= STACKADDR)."
+    priority: must
+    measurable_target: "Round-trip at both boundaries and interior addresses; byte-lane writes update only enabled lanes"
+    source: user_brief
+    rationale: "PLAN.md §3 (OQ3: 128 KB)"
+    verification: {method: simulation, items: [VP-SRAM-001, VP-IC-002]}
+    status: agreed
+  - id: REQ-010
+    title: "vec_rom: read-only 78,500 B image/label source"
+    category: interface
+    description: "vec_rom shall be a read-only region at 0x1000_0000 of 78,500 bytes with a 1-cycle registered read latency: images.hex (78,400 bytes) at +0x0000..+0x1323F and labels.hex (100 bytes) at +0x13240..+0x132A3, loaded via $readmemh from the frozen golden files; writes shall be ignored; it is the CPU's image/label source."
+    priority: must
+    measurable_target: "All 78,500 bytes read back == images.hex + labels.hex; write ignored; rvalid 1 cycle after accept"
+    source: user_brief
+    rationale: "PLAN.md §3, Decision Record OQ1"
+    verification: {method: simulation, items: [VP-VEC-001]}
+    status: agreed
+  - id: REQ-011
+    title: "AXI2APB bridge: UART +0x0000, GPIO +0x1000, never hang"
+    category: interface
+    description: "The AXI2APB bridge shall map window 0x4000_0000 to APB: UART at +0x0000 (8 B) and GPIO at +0x1000 (4 B), selected on PADDR[11:0]; APB offsets outside the two targets shall return PRDATA=0 with PREADY asserted (no hang); the bridge shall assert bvalid/rvalid per REQ-005 timing (read response no later than 3 cycles after accept)."
+    priority: must
+    measurable_target: "Round-trip writes/reads to both targets; unmapped APB offset completes with PRDATA=0"
+    source: user_brief
+    rationale: "PLAN.md §3, §7"
+    verification: {method: simulation, items: [VP-APB-001]}
+    status: agreed
+  - id: REQ-012
+    title: "cnn_axi_slave window: register offsets and image buffer"
+    category: interface
+    description: "The cnn_axi_slave shall map window 0x5000_0000 as: CNN_CTRL +0x00, CNN_STATUS +0x04, CNN_RESULT +0x08, CNN_EXP +0x0C, CNN_IMG +0x100..+0x40F (784 bytes)."
+    priority: must
+    measurable_target: "Every offset in the map returns/accepts data at exactly its assigned register"
+    source: user_brief
+    rationale: "PLAN.md §4.3"
+    verification: {method: simulation, items: [VP-CNN-001]}
+    status: agreed
+  - id: REQ-013
+    title: "UART_TX: 1-cycle utx_valid pulse, 115200 8N1, idle-high mark"
+    category: interface
+    description: "A write to UART_TX (+0x00) shall pulse utx_valid for exactly 1 cycle with utx_data=PWDATA[7:0] into the reused uart_tx (cnn/rtl/uart_tx.v:25-26), CLK_DIV=868 default via top parameter UART_CLK_DIV (arch.md:224, 115200 8N1 LSB-first); the top-level uart_tx pin shall idle high (mark) between frames and during reset."
+    priority: must
+    measurable_target: "utx_valid high for exactly 1 cycle per write; frame bit widths == CLK_DIV cycles; idle == 1 between frames"
+    source: user_brief
+    rationale: "PLAN.md §7; IFI-007 valid/ready (arch.md:559-562)"
+    verification: {method: simulation, items: [VP-UART-001, VP-TOP-002]}
+    status: agreed
+  - id: REQ-014
+    title: "UART_STAT: BUSY poll-before-write; drop-on-busy semantics"
+    category: interface
+    description: "UART_STAT (+0x04) read shall return {31'b0, BUSY} with BUSY = !utx_ready (uart_tx.v:44-45); a UART_TX write while BUSY=1 shall be accepted by the bus but the byte shall be dropped (uart_tx samples utx_valid only in IDLE, uart_tx.v:59); firmware shall poll BUSY before each write."
+    priority: must
+    measurable_target: "BUSY reflects transmitter state; drop-on-busy reproduced; firmware never writes while BUSY (G1)"
+    source: user_brief
+    rationale: "PLAN.md §4.1; ex6/sw/hello.c:9 polling pattern"
+    verification: {method: simulation, items: [VP-UART-001]}
+    status: agreed
+  - id: REQ-015
+    title: "GPIO_OUT: 12-bit RW register driving led[11:0]"
+    category: interface
+    description: "GPIO_OUT (+0x00, RW, reset 0) shall drive top-level led[11:0]; any write with any wstrb shall update the full 12-bit value from PWDATA[11:0]; reads shall return the register value."
+    priority: must
+    measurable_target: "led[11:0] == GPIO_OUT; reset value 0; readback == written value"
+    source: user_brief
+    rationale: "PLAN.md §4.2 (OQ4: firmware writes the pattern)"
+    verification: {method: simulation, items: [VP-GPIO-001, VP-TOP-004]}
+    status: agreed
+  - id: REQ-016
+    title: "CNN_CTRL: START write-1 strobe, PARK soft-reset, dominance rules"
+    category: interface
+    description: "CNN_CTRL (+0x00, RW, reset 0): bit[0] START is a write-1 strobe (reads back 0); bit[1] PARK is RW. Writing PARK=1 shall immediately hold the CNN core in synchronous reset and clear BUSY/DONE (abort); writing START=1 while PARK=1 or BUSY=1 shall be ignored; writing START=1 while PARK=0 and BUSY=0 shall launch exactly one inference (REQ-021)."
+    priority: must
+    measurable_target: "All four corner cases (START clean, START-while-BUSY, START-while-PARK, PARK abort) behave as specified"
+    source: user_brief
+    rationale: "PLAN.md §4.3, §6.2"
+    verification: {method: simulation, items: [VP-CNN-001, VP-TOP-007]}
+    status: agreed
+  - id: REQ-017
+    title: "CNN_STATUS: BUSY and DONE lifecycle"
+    category: interface
+    description: "CNN_STATUS (+0x04, RO, reset 0): bit[0] BUSY shall be 1 from the cycle a START is accepted until the cycle the result is latched; bit[1] DONE shall be set on result latch (lc_present) and cleared by the next START or by a PARK write; bits [31:2] read 0."
+    priority: must
+    measurable_target: "BUSY/DONE transitions match the single-shot lifecycle over 100 consecutive runs"
+    source: user_brief
+    rationale: "PLAN.md §4.3"
+    verification: {method: simulation, items: [VP-CNN-001, VP-TOP-003, VP-TOP-007]}
+    status: agreed
+  - id: REQ-018
+    title: "CNN_RESULT: pred/conf/verdict latched at lc_present"
+    category: interface
+    description: "CNN_RESULT (+0x08, RO, reset 0) shall present [3:0] pred (= ctrl_fsm best_idx / lf_pred), [14:8] confidence 0..100 (= lf_conf), [17:16] verdict 0/1/2 (= lf_verdict); all other bits read 0; the value shall be latched from the ctrl_fsm outputs on the lc_present cycle (ctrl_fsm.v:189-193,198) and held until the next START."
+    priority: must
+    measurable_target: "For every image i: CNN_RESULT == expected.hex words 4i (pred), 4i+1 (conf), 4i+3 (verdict)"
+    source: user_brief
+    rationale: "PLAN.md §4.3 (G2)"
+    verification: {method: simulation, items: [VP-CNN-001, VP-CNN-002, VP-TOP-003]}
+    status: agreed
+  - id: REQ-019
+    title: "CNN_EXP: CPU-provided expected label drives hardware verdict"
+    category: interface
+    description: "CNN_EXP (+0x0C, WO, reads 0) shall hold the expected label for the current image; the core's label input shall be lrom_data[3:0] = {4'd0, CNN_EXP[3:0]} (replacing label_rom, ctrl_fsm.v:47) so the hardware verdict (ctrl_fsm.v:182-183) equals the golden verdict (expected.hex word 4i+3) for that image."
+    priority: must
+    measurable_target: "verdict == expected.hex word 4i+3 for all 100 images; CNN_EXP readback == 0"
+    source: user_brief
+    rationale: "PLAN.md §4.3, §6.1"
+    verification: {method: simulation, items: [VP-CNN-001, VP-CNN-002, VP-TOP-003]}
+    status: agreed
+  - id: REQ-020
+    title: "CNN_IMG: 784x8 CPU-writable buffer, little-endian packing, 1-cycle core read"
+    category: interface
+    description: "CNN_IMG (+0x100..+0x40F, WO, reads 0) shall be a 784x8 CPU-writable image buffer; byte p of the image at offset +0x100+p; a word write to +0x100+4k shall pack pixels 4k..4k+3 into bytes [7:0],[15:8],[23:16],[31:24] with wstrb lane-enables; the core read port shall present irom_data with the same 1-cycle registered read timing as image_rom (image_rom.v:25-29); no read/write contention is possible because the CPU writes only while the core is parked (REQ-021)."
+    priority: must
+    measurable_target: "784 bytes written via bus read back through the core port exactly; G2 passes for all 100 images"
+    source: user_brief
+    rationale: "PLAN.md §6.1; golden_model/README.md:20"
+    verification: {method: simulation, items: [VP-CNN-003, VP-CNN-002, VP-IC-002]}
+    status: agreed
+  - id: REQ-021
+    title: "Single-shot: reset-parked core, one inference per START, bounded BUSY"
+    category: functional
+    description: "The single-shot sequencer shall hold the cnn_infer core in synchronous reset (parked: ctrl_fsm at ST_CONV1, img_idx=0) at SoC reset and re-park it within 2 cycles of the lc_present strobe (ctrl_fsm.v:198), before img_idx can advance (ctrl_fsm.v:463); every inference therefore processes image index 0 exactly once per START; BUSY shall remain asserted for at most 667,500 cycles per START (compute 667,208 cycles, arch.md:481, + 2 PRESENT cycles + park)."
+    priority: must
+    measurable_target: "img_idx==0 at all times (hierarchical probe); park within 2 cycles of lc_present; BUSY window <= 667,500 cycles; second START reproduces an identical CNN_RESULT"
+    source: user_brief
+    rationale: "PLAN.md §6.2 (R3 park timing); zero core edits"
+    verification: {method: simulation, items: [VP-TOP-007, VP-CNN-002]}
+    status: agreed
+  - id: REQ-022
+    title: "cnn_infer reuses verified leaves byte-for-byte; lf_done tied to 1"
+    category: functional
+    description: "cnn_infer shall instantiate ctrl_fsm, mac_datapath, win_addr_gen, fm_ram, weight_rom and sigmoid_lut byte-for-byte (zero edits to those files) with the exact wiring of cnn_npu.v:99-233; it shall NOT instantiate image_rom, label_rom, uart_line_fmt, uart_tx or led_ctrl; ctrl_fsm.lf_done shall be tied to 1 so PH_WAIT_UART exits immediately (ctrl_fsm.v:449-455); result ports (pred/conf/verdict/busy/present) shall be the existing ctrl_fsm lf_*/lc_* outputs (ctrl_fsm.v:186-198)."
+    priority: must
+    measurable_target: "Diff of the six leaf files vs cnn/rtl = 0 changes; wiring matches cnn_npu.v:99-233; no forbidden module instantiated (inspection + compile)"
+    source: user_brief
+    rationale: "PLAN.md §1 decision 2, §6.1; bit-exact core is sealed"
+    verification: {method: inspection, items: [VP-CNN-004]}
+    status: agreed
+  - id: REQ-023
+    title: "Weights + sigmoid LUT stay internal $readmemh ROMs in v1"
+    category: functional
+    description: "Weights and the sigmoid LUT shall remain internal $readmemh ROMs in v1 (weight_rom <- weights.hex; sigmoid_lut <- sigmoid_lut.hex); v1 is CPU-path for program/image/label only; no CPU-writable weight path shall exist."
+    priority: must
+    measurable_target: "weight_rom/sigmoid_lut load from the frozen hex files; no SRAM/register weight source exists"
+    source: user_brief
+    rationale: "PLAN.md Decision Record OQ7 (honest note: v1 is NOT zero-$readmemh)"
+    verification: {method: inspection, items: [VP-CNN-004]}
+    status: agreed
+  - id: REQ-024
+    title: "UART byte stream is golden-exact (three verdict line formats)"
+    category: interface
+    description: "The firmware's UART output shall be byte-exact to the golden stream: per image exactly one line in one of the three formats (CORRECT / INCORRECT / TRASH, exact strings in spec.md §4.1), image index zero-padded to 3 digits, all other numbers unpadded decimal, terminated by a single 0x0A with no 0x0D, matching cnn/arch/golden_model/expected_outputs.txt line-for-line for images 0..99."
+    priority: must
+    measurable_target: "diff(decoded UART, first 100 lines of expected_outputs.txt) == 0 mismatches (G1)"
+    source: user_brief
+    rationale: "PLAN.md §8 (UART output format), §9 G1; cnn/spec/spec.md:111-118"
+    verification: {method: simulation, items: [VP-TOP-002, VP-FW-001]}
+    status: agreed
+  - id: REQ-025
+    title: "Firmware 100-image demo loop with polled CNN driver"
+    category: functional
+    description: "The firmware shall process images 0..99 in order: read the 784-byte image from vec_rom (0x1000_0000 + i*784) and the label from vec_rom (0x1001_3240 + i), write CNN_EXP, copy the image to CNN_IMG, write CNN_CTRL START, poll CNN_STATUS DONE, read CNN_RESULT, print the UART line, write the LED pattern to GPIO_OUT; after image 99 the firmware shall spin forever."
+    priority: must
+    measurable_target: "100 images processed in order with correct data provenance (G1/G2/G3 evidence)"
+    source: user_brief
+    rationale: "PLAN.md §8 (C structure)"
+    verification: {method: simulation, items: [VP-TOP-002, VP-TOP-003]}
+    status: agreed
+  - id: REQ-026
+    title: "LED encoding at the presented instant (firmware-side led_ctrl reproduction)"
+    category: functional
+    description: "At each result-presented instant the firmware shall drive GPIO_OUT[9:0] = one-hot(pred) (all-zero when verdict==2/TRASH), GPIO_OUT[10] = (verdict != 0) (fail), GPIO_OUT[11] = 0 (busy indicator off); while an inference is in flight GPIO_OUT[11] shall be 1."
+    priority: must
+    measurable_target: "100/100 presented-instant LED checks pass (G3); led[11] busy semantics observed"
+    source: user_brief
+    rationale: "PLAN.md §4.2, §9 G3 (led_ctrl.v:66-78 encoding reproduced in firmware)"
+    verification: {method: simulation, items: [VP-TOP-004]}
+    status: agreed
+  - id: REQ-027
+    title: "Polling only; no interrupts in v1"
+    category: functional
+    description: "v1 shall use polling only: ENABLE_IRQ=0, irq tied to 32'd0; the firmware shall poll CNN_STATUS[1] (DONE) and UART_STAT[0] (BUSY); no interrupt controller, no vector table, no CSR usage."
+    priority: must
+    measurable_target: "No interrupt-related logic exists (inspection); firmware observes DONE/BUSY by polling (G1/G2)"
+    source: user_brief
+    rationale: "PLAN.md §5 polling vs IRQ; fe-firmware/SKILL.md:90-96"
+    verification: {method: inspection, items: [VP-TOP-008]}
+    status: agreed
+  - id: REQ-028
+    title: "Single clock domain, posedge-clk sequential logic"
+    category: clocking
+    description: "cnn_soc shall have exactly one clock domain (CD_CORE, clk, 100 MHz nominal / 10.000 ns); every sequential element shall be clocked on posedge clk; no clock gating in v1."
+    priority: must
+    measurable_target: "Inspection: 0 negedge/dual-edge always blocks; 1 clock net"
+    source: user_brief
+    rationale: "PLAN.md §2; cnn/arch/arch.md:564-570"
+    verification: {method: inspection, items: [VP-TOP-001, VP-TOP-005]}
+    status: agreed
+  - id: REQ-029
+    title: "Fully synchronous active-low rst_n with reset output defaults"
+    category: reset
+    description: "rst_n shall be active-low and fully synchronous (every flop: always @(posedge clk) if (!rst_n) ... else ...; no async/negedge reset terms), fanned out to picorv32 resetn and every slave; during rst_n=0 the outputs shall be led[11:0]==12'h000 and uart_tx==1'b1; minimum assert width 2 cycles (ASM-001)."
+    priority: must
+    measurable_target: "led==0 and uart_tx==1 throughout reset; no X/Z on outputs after release (G4); 0 negedge-rst always blocks"
+    source: user_brief
+    rationale: "PLAN.md §2, §9 G4 (deviation §2.1; cnn/spec/spec.md:126-135)"
+    verification: {method: simulation, items: [VP-TOP-001, VP-TOP-005]}
+    status: agreed
+  - id: REQ-030
+    title: "Data widths and endianness"
+    category: interface
+    description: "Data widths shall be: AXI address/data 32-bit with wstrb[3:0] byte-enables; little-endian byte order throughout (RV32); image pixels 8-bit unsigned; LED 12-bit; CNN result widths per spec.md §6.3; APB address PADDR[11:0], data 32-bit."
+    priority: must
+    measurable_target: "wstrb lane tests pass; CNN_IMG packing little-endian (pixel 4k in byte [7:0] of word k)"
+    source: user_brief
+    rationale: "PLAN.md §3, §4; hex2words.py packing"
+    verification: {method: simulation, items: [VP-IC-002, VP-CNN-003]}
+    status: agreed
+  - id: REQ-031
+    title: "Bounded boot and full-run cycle budgets"
+    category: performance
+    description: "The first complete UART line shall be transmitted within 1,500,000 cycles of rst_n release; the full 100-image demo shall complete within 150,000,000 cycles at any UART_CLK_DIV in {4, 868}; the SoC TB watchdog shall enforce both bounds."
+    priority: must
+    measurable_target: "First line <= 1.5M cycles; full run <= 150M cycles; 0 watchdog aborts (G5)"
+    source: user_brief
+    rationale: "PLAN.md §9 G5, §10 runtime expectation; arch.md:481,487-496"
+    verification: {method: simulation, items: [VP-TOP-006]}
+    status: agreed
+  - id: REQ-032
+    title: "Pure Verilog-2001, no latches, no DFT, safe defaults"
+    category: compliance
+    description: "All RTL shall be pure Verilog-2001 (IEEE 1364-2001): no SystemVerilog constructs, no inferred latches (every always @* block assigns all LHS on all paths), no DFT structures, no custom analog, no '#' delays outside testbenches; every case statement shall include a safe default arc."
+    priority: must
+    measurable_target: "iverilog -g2001 compile-only clean; 0 latch warnings; grep checks pass (fe-rtl §9 gates)"
+    source: standard
+    rationale: "Pipeline contract; cnn REQ-035/036 precedent"
+    verification: {method: inspection, items: [VP-CNN-004, VP-TOP-001]}
+    status: agreed
+
+assumptions:
+  - id: ASM-001
+    statement: "Minimum reset assert width is 2 clk cycles (the SoC TB asserts rst_n for >= 10 cycles at start, PLAN.md §9 / ex6_tb.v:118-119 precedent)."
+    basis: default_table
+    impact: "Sets the TB reset sequence and RST-001 min_assert_cycles; no effect on bit-exactness."
+    requires_confirmation: true
+  - id: ASM-002
+    statement: "Core clock is exactly 100.000 MHz (10.000 ns), matching the CNN's nominal 100 MHz (cnn/arch/arch.md:564-570)."
+    basis: default_table
+    impact: "Sets all timing budgets (UART CLK_DIV=868, REQ-031 cycle budgets); no effect on bit-exactness."
+    requires_confirmation: true
+
+ip_reuse:
+  - id: IPR-001
+    block: "picorv32_axi (with picorv32 core + picorv32_axi_adapter)"
+    decision: reuse
+    repo: "local: skill-tests/ex6/rtl/picorv32.v (L2517 picorv32_axi, L62 picorv32, L2731 adapter)"
+    commit: null
+    license: ISC
+    status: verified
+    search_command: null
+    notes: "Local iverilog-clean copy read this session; ISC per file header (Copyright 2015 Claire Xenia Wolf). Instantiated verbatim, no custom adapter. No external repo/URL claimed."
+  - id: IPR-002
+    block: "CNN inference leaves: ctrl_fsm, mac_datapath, win_addr_gen, fm_ram, weight_rom, sigmoid_lut"
+    decision: reuse
+    repo: "local: cnn/rtl/*.v (project-internal)"
+    commit: null
+    license: project-internal
+    status: verified
+    search_command: null
+    notes: "Byte-for-byte, zero edits (REQ-022); rtl_manifest.yaml:34-46 status complete; all files read this session. No external repo/URL claimed."
+  - id: IPR-003
+    block: "uart_tx (APB UART shell)"
+    decision: reuse
+    repo: "local: cnn/rtl/uart_tx.v (project-internal)"
+    commit: null
+    license: project-internal
+    status: verified
+    search_command: null
+    notes: "Byte-for-byte reuse with CLK_DIV parameter (default 868); verified per rtl_manifest.yaml:43; file read this session. No external repo/URL claimed."
+  - id: IPR-004
+    block: "Frozen golden vectors + sigmoid LUT hex: weights.hex, images.hex, labels.hex, expected.hex, expected_outputs.txt, sigmoid_lut.hex"
+    decision: reuse
+    repo: "local: cnn/arch/golden_model/ + cnn/rtl/sigmoid_lut.hex (project-internal, FROZEN)"
+    commit: null
+    license: project-internal
+    status: verified
+    search_command: null
+    notes: "Frozen pre-existing package; must not be regenerated/edited (golden_model/README.md; cnn rtl_manifest golden_package_commit e7569dbd). No external repo/URL claimed."
+
+open_issues: []

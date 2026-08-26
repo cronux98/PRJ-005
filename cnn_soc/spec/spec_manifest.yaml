@@ -1,0 +1,43 @@
+schema_version: "1.0"
+stage: fe-spec
+generated_for: fe-arch
+project_name: "cnn_soc"
+source_plan: "PLAN-CNN-SOC-v1.0 (Rinri-approved 2026-08-26; OQ1..OQ7 Decision Record binding)"
+technology: {pdk: fpga_generic, node_nm: null, core_voltage_v: null}   # DEVIATION from sky130 default — see spec.md §2.1
+deviation_note: >
+  Two documented deviations from the fe-spec skill defaults, both project precedent (cnn/mnist_npu,
+  PLAN.md Decision Record "Additional bindings"):
+  (1) technology.pdk = fpga_generic, NOT sky130 — the verified cnn engine and the ex6 reference
+  SoC are FPGA-generic designs; no Sky130-specific artifact may be substituted downstream.
+  (2) reset is fully SYNCHRONOUS active-low (type: sync in interfaces.yaml RST-001), NOT
+  async-assert/sync-deassert — every flop uses always @(posedge clk) if (!rst_n) ...
+  fe-arch/fe-rtl must carry both forward unchanged.
+constraints: {rtl_language: verilog-2001, dft: none, custom_analog: false}
+artifacts:
+  - {file: spec.md,               present: true}
+  - {file: requirements.yaml,     present: true}
+  - {file: interfaces.yaml,       present: true}
+  - {file: verification_plan.md,  present: true}
+counts:
+  requirements: 32
+  assumptions: 2
+  interfaces: 5
+  clock_domains: 1
+  cdc_paths: 0
+  ip_reuse_candidates: 4
+  verification_items_top: 9
+  verification_items_module: 14
+review_gate:
+  all_requirements_measurable: true
+  all_requirements_traced: true
+  no_orphan_verification_items: true
+  no_contradictions_found: true
+  cdc_enumerated: true    # trivially true: 0 crossings exist in a single-clock-domain design (REQ-028)
+blocking_open_issues: []
+unconfirmed_assumptions: [ASM-001, ASM-002]
+assumptions_acknowledged: true   # explicitly acknowledged (spec.md §11, cnn precedent): neither affects
+                                   # the bit-exact datapath contract; fe-arch may proceed per ARCH-E012
+golden_reference:
+  frozen: true
+  location: "cnn/arch/golden_model/ (weights.hex, images.hex, labels.hex, expected.hex, expected_outputs.txt) + cnn/rtl/sigmoid_lut.hex"
+  note: "Frozen pre-existing package (cnn golden_package_commit e7569dbd). SoC reuses images.hex/labels.hex/expected.hex/expected_outputs.txt verbatim via vec_rom + G1/G2 checks; must not be regenerated or edited by any downstream stage."

@@ -1,0 +1,151 @@
+schema_version: "1.0"
+stage: fe-spec
+project: "cnn_soc"
+
+# ---------------------------------------------------------------------------
+# Clocks. One domain only (CD_CORE). No CDC paths exist (no UART RX, no camera,
+# no external async input in v1 — README.md:28, PLAN.md §2).
+# ---------------------------------------------------------------------------
+clocks:
+  - id: CLK-001
+    name: clk
+    domain: CD_CORE
+    frequency_mhz: 100.0
+    period_ns: 10.000
+    source: external_pad
+    duty_cycle_pct: 50
+    jitter_ns: 0.100
+    notes: "Nominal 100 MHz per project precedent (cnn/arch/arch.md:564-570); ASM-002. Single domain; no generated clocks, no gating (REQ-028)."
+
+# ---------------------------------------------------------------------------
+# Resets. One reset, fully SYNCHRONOUS active-low (DEVIATION from the skill
+# default async-assert/sync-deassert — project precedent, spec.md §2.1).
+# ---------------------------------------------------------------------------
+resets:
+  - id: RST-001
+    name: rst_n
+    polarity: active_low
+    type: sync                      # fully synchronous: always @(posedge clk) if (!rst_n) ... (REQ-029)
+    domain: CD_CORE
+    source: external_pad
+    min_assert_cycles: 2            # ASM-001; SoC TB asserts >= 10 cycles at start (PLAN.md §9)
+    sequencing: "None needed: single domain, 0 CDC paths. Fans out to picorv32 resetn and every slave (PLAN.md §2)."
+    notes: "No reset synchroniser (single domain). During reset: led[11:0]==12'h000, uart_tx==1'b1 (REQ-029, G4)."
+
+# ---------------------------------------------------------------------------
+# Interfaces.
+#   IF-001/IF-002: top-level external ports of cnn_soc (clk/rst_n are CLK-001/RST-001).
+#   IF-003:        simplified AXI4-Lite master (picorv32_axi built-in; internal).
+#   IF-004:        APB bus, bridge -> peripherals (internal).
+#   IF-005:        cnn_core_if, cnn_axi_slave <-> cnn_infer (internal, custom).
+# ---------------------------------------------------------------------------
+interfaces:
+  - id: IF-001
+    name: uart_tx_if
+    protocol: UART
+    role: output                    # TX only; no RX in v1 (cnn uart_tx precedent)
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      baud_rate: 115200
+      bit_time_ns: 8680.0           # 868 cycles @ 100 MHz (CLK_DIV=868, arch.md:224); top param UART_CLK_DIV default 868
+      framing: "8N1, LSB-first, 1 start + 8 data + 1 stop; idle-high mark between frames and during reset (REQ-013/029)"
+    signals:
+      - {name: uart_tx, dir: output, width: 1, active: high, description: "Serial TX pin; idle-high (mark); 0 during start bit"}
+    notes: "Driven by the reused cnn/rtl/uart_tx.v (IPR-003) via the apb_uart shell. Byte stream must be golden-exact (REQ-024, G1)."
+
+  - id: IF-002
+    name: led_status_if
+    protocol: GPIO
+    role: output
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget: {}
+    signals:
+      - {name: led, dir: output, width: 12, active: high, description: "LED outputs = GPIO_OUT[11:0]; [9:0] one-hot pred / 0 on TRASH, [10] fail (verdict!=0), [11] busy indicator (REQ-026)"}
+    notes: "Firmware-driven via APB GPIO (OQ4: no led_ctrl.v re-instantiation)."
+
+  - id: IF-003
+    name: axil_master
+    protocol: AXI4-Lite             # SIMPLIFIED: no BRESP/RRESP/ID (picorv32_axi_adapter, picorv32.v:2731-2767)
+    role: master
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      write_response_max_cycles: 1          # bvalid exactly 1 cycle after the write-accept cycle (REQ-005)
+      read_response_max_cycles: 3           # memory/register slaves: 1 cycle; AXI2APB bridge: <= 3 cycles (REQ-005)
+    signals:
+      - {name: mem_axi_awvalid, dir: output, width: 1, active: high, description: "Write address valid (issued together with W, picorv32.v:2773)"}
+      - {name: mem_axi_awready, dir: input,  width: 1, active: high, description: "Write address accepted (slave, combinational when idle)"}
+      - {name: mem_axi_awaddr,  dir: output, width: 32, active: high, description: "Write address (byte-addressed)"}
+      - {name: mem_axi_awprot,  dir: output, width: 3,  active: high, description: "Protection hint; slaves ignore"}
+      - {name: mem_axi_wvalid,  dir: output, width: 1, active: high, description: "Write data valid (same cycle as AW)"}
+      - {name: mem_axi_wready,  dir: input,  width: 1, active: high, description: "Write data accepted"}
+      - {name: mem_axi_wdata,   dir: output, width: 32, active: high, description: "Write data"}
+      - {name: mem_axi_wstrb,   dir: output, width: 4,  active: high, description: "Byte enables [3:0]"}
+      - {name: mem_axi_bvalid,  dir: input,  width: 1, active: high, description: "Write response valid (1-cycle pulse; no BRESP)"}
+      - {name: mem_axi_bready,  dir: output, width: 1, active: high, description: "Write response accepted"}
+      - {name: mem_axi_arvalid, dir: output, width: 1, active: high, description: "Read address valid"}
+      - {name: mem_axi_arready, dir: input,  width: 1, active: high, description: "Read address accepted"}
+      - {name: mem_axi_araddr,  dir: output, width: 32, active: high, description: "Read address"}
+      - {name: mem_axi_arprot,  dir: output, width: 3,  active: high, description: "3'b100 for instruction fetch (hint only; ignored)"}
+      - {name: mem_axi_rvalid,  dir: input,  width: 1, active: high, description: "Read data valid (1-cycle pulse; no RRESP)"}
+      - {name: mem_axi_rready,  dir: output, width: 1, active: high, description: "Read data accepted"}
+      - {name: mem_axi_rdata,   dir: input,  width: 32, active: high, description: "Read data"}
+    notes: "Adapter contract (binding, PLAN.md R2): mem_ready = bvalid||rvalid (picorv32.v:2785); AW+W together (picorv32.v:2773,2781); single outstanding (CPU single-issue) — no arbitration/ID tracking anywhere. Slave response rules in REQ-005. Unmapped addresses must still complete (REQ-006)."
+
+  - id: IF-004
+    name: apb_bus
+    protocol: APB4                  # subset: no PSTRB; both targets are sub-word registers updated in full (spec.md §4)
+    role: master                    # bridge is the APB master; apb_uart/apb_gpio are slaves
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      setup_cycles: 1
+      access_cycles: 1
+      read_response_max_cycles: 3   # from AXI accept cycle (REQ-005)
+    signals:
+      - {name: psel,    dir: output, width: 1,  active: high, description: "Peripheral select (one of two targets per access)"}
+      - {name: penable, dir: output, width: 1,  active: high, description: "APB ACCESS phase"}
+      - {name: pwrite,  dir: output, width: 1,  active: high, description: "1 = write"}
+      - {name: paddr,   dir: output, width: 12, active: high, description: "Byte address; [11:0] selects UART (+0x0000) vs GPIO (+0x1000)"}
+      - {name: pwdata,  dir: output, width: 32, active: high, description: "Write data"}
+      - {name: prdata,  dir: input,  width: 32, active: high, description: "Read data"}
+      - {name: pready,  dir: input,  width: 1,  active: high, description: "Transfer complete (targets are 0-wait-state)"}
+    notes: "PADDR offsets outside the two targets -> PRDATA=0 with PREADY (REQ-011). wstrb consumed at the AXI side; APB targets update in full on any write (spec.md §4, REQ-015)."
+
+  - id: IF-005
+    name: cnn_core_if
+    protocol: custom
+    role: slave                     # cnn_axi_slave drives; cnn_infer is the core side
+    clock: clk
+    reset: rst_n
+    async_to_core: false
+    timing_budget:
+      park_response_max_cycles: 2   # re-park within 2 cycles of lc_present (REQ-021, PLAN.md R3)
+    signals:
+      - {name: core_rst_n, dir: output, width: 1,  active: low,  description: "Core park: 0 = ctrl_fsm held in synchronous reset (ST_CONV1, img_idx=0); 1 = running"}
+      - {name: exp_label,  dir: output, width: 4,  active: high, description: "CNN_EXP[3:0]; drives ctrl_fsm.lrom_data[3:0] = {4'd0, exp_label} (REQ-019)"}
+      - {name: img_waddr,  dir: output, width: 10, active: high, description: "Image buffer write address 0..783"}
+      - {name: img_wdata,  dir: output, width: 8,  active: high, description: "Image buffer write data (pixel)"}
+      - {name: img_we,     dir: output, width: 1,  active: high, description: "Image buffer write enable (CPU writes only while parked, REQ-020)"}
+      - {name: pred,       dir: input,  width: 4,  active: high, description: "lf_pred = ctrl_fsm.best_idx (ctrl_fsm.v:189)"}
+      - {name: conf,       dir: input,  width: 7,  active: high, description: "lf_conf = confidence 0..100 (ctrl_fsm.v:190)"}
+      - {name: verdict,    dir: input,  width: 2,  active: high, description: "lf_verdict 0/1/2 (ctrl_fsm.v:193)"}
+      - {name: busy,       dir: input,  width: 1,  active: high, description: "lc_busy (ctrl_fsm.v:187); status window for REQ-017"}
+      - {name: present,    dir: input,  width: 1,  active: high, description: "lc_present — architecturally exactly 1 cycle (ctrl_fsm.v:198, arch.md:427-434); latch + re-park trigger"}
+    notes: "All core-side signals are existing ctrl_fsm outputs (ctrl_fsm.v:186-198) — the reused core is not modified (REQ-022)."
+
+# ---------------------------------------------------------------------------
+# CDC. None: single clock domain, zero crossings (REQ-028). Intentionally empty.
+# ---------------------------------------------------------------------------
+cdc_requirements: []
+
+# ---------------------------------------------------------------------------
+# Analog macros. None (fpga_generic; no Sky130 or any other analog cell).
+# ---------------------------------------------------------------------------
+analog_macros: []
