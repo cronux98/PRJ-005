@@ -1,0 +1,8 @@
+PASS tb_cnn_soc (G1-G5 in-sim checks)
+FAIL G1 (UART diff) — see /home/smdadmin/PRJ-005/cnn_soc/verify/run-001/diff.log
+PASS G2 (in-sim, no G2_ failures)
+PASS G3 (in-sim, no G3_ failures)
+PASS G4 (in-sim, no G4_ failures)
+PASS G5 (in-sim, no G5_ failures)
+
+RESULT: PASS=5 FAIL=1
