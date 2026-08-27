@@ -1,0 +1,4 @@
+run-001 2026-08-26T17:59:57Z PASS=4 FAIL=2 rtl_md5=c2d2997e5a1a3aabe2d888be7fffb321 fw_md5=b7a8d7044ff4644a7a1b0a6c5f6dac59 dir=/home/smdadmin/PRJ-005/cnn_soc/verify/run-001
+run-001 2026-08-26T19:22:40Z PASS=5 FAIL=1 rtl_md5=c2d2997e5a1a3aabe2d888be7fffb321 fw_md5=b7a8d7044ff4644a7a1b0a6c5f6dac59 dir=/home/smdadmin/PRJ-005/cnn_soc/verify/run-001
+run-001 2026-08-26T20:30:03Z PASS=5 FAIL=1 rtl_md5=c2d2997e5a1a3aabe2d888be7fffb321 fw_md5=b7a8d7044ff4644a7a1b0a6c5f6dac59 dir=/home/smdadmin/PRJ-005/cnn_soc/verify/run-001
+run-002 2026-08-26T22:55:37Z PASS=6 FAIL=0 rtl_md5=c2d2997e5a1a3aabe2d888be7fffb321 fw_md5=b7a8d7044ff4644a7a1b0a6c5f6dac59 dir=/home/smdadmin/PRJ-005/cnn_soc/verify/run-002

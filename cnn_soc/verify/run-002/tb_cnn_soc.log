@@ -1,0 +1,7 @@
+ip/picorv32.v:1352: warning: @* is sensitive to all 32 words in array 'cpuregs'.
+ip/picorv32.v:1353: warning: @* is sensitive to all 32 words in array 'cpuregs'.
+ip/picorv32.v:1352: warning: @* is sensitive to all 32 words in array 'cpuregs'.
+ip/picorv32.v:1353: warning: @* is sensitive to all 32 words in array 'cpuregs'.
+INFO: 100-image demo completed @688022175000 (68.8M cycles total)
+INFO: first DONE at 0.0M cycles, first UART line done at 0.0M cycles
+PASS tb_cnn_soc

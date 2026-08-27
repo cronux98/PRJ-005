@@ -25,3 +25,11 @@ mnist_npu/verify/**/__pycache__/
 cnn/verify/run-*/**/*.vvp
 cnn/verify/**/sim_build/
 cnn/verify/**/__pycache__/
+
+# cnn_soc (PRJ-005) SoC verification EVIDENCE is versioned too (same policy).
+!cnn_soc/verify/iterations.log
+!cnn_soc/verify/run-*/
+!cnn_soc/verify/run-*/**
+cnn_soc/verify/run-*/**/*.vvp
+cnn_soc/verify/**/sim_build/
+cnn_soc/verify/**/__pycache__/

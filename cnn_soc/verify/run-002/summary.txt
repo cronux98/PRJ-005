@@ -1,0 +1,8 @@
+PASS tb_cnn_soc (G1-G5 in-sim checks)
+PASS G1 (100/100 lines byte-exact vs expected_outputs.txt first-100, 100 lines)
+PASS G2 (in-sim, no G2_ failures)
+PASS G3 (in-sim, no G3_ failures)
+PASS G4 (in-sim, no G4_ failures)
+PASS G5 (in-sim, no G5_ failures)
+
+RESULT: PASS=6 FAIL=0
