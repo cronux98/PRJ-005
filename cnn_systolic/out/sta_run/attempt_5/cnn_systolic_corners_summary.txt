@@ -1,0 +1,9 @@
+corner       wns(ns)    tns(ns)    wrst_slack     min_per(ns)   fmax(MHz)  power(W)     area(um2)   
+ss_100C_1v40 n/a        n/a        n/a            n/a           n/a        n/a          n/a         
+ss_100C_1v60 n/a        n/a        n/a            n/a           n/a        n/a          n/a         
+ss_n40C_1v44 n/a        n/a        n/a            n/a           n/a        n/a          n/a         
+tt_025C_1v80 n/a        n/a        n/a            n/a           n/a        n/a          n/a         
+tt_100C_1v80 n/a        n/a        n/a            n/a           n/a        n/a          n/a         
+ff_100C_1v65 n/a        n/a        n/a            n/a           n/a        n/a          n/a         
+ff_100C_1v95 n/a        n/a        n/a            n/a           n/a        n/a          n/a         
+ff_n40C_1v76 n/a        n/a        n/a            n/a           n/a        n/a          n/a         

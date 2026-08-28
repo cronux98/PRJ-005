@@ -1,0 +1,17 @@
+{
+  "name": "cnn_systolic",
+  "clocks": [
+    {"name": "clk", "port": "clk", "period": 10.000, "uncertainty": 0.500, "latency": 0.000}
+  ],
+  "generated_clocks": [],
+  "clock_groups_async": [],
+  "inputs": [
+    {"name": "rst_n", "clock": "clk", "delay": 3.000}
+  ],
+  "outputs": [
+    {"name": "uart_tx", "clock": "clk", "delay": 3.000, "load": 0.020},
+    {"name": "led[*]", "clock": "clk", "delay": 3.000, "load": 0.020}
+  ],
+  "false_paths": [],
+  "multicycle_paths": []
+}

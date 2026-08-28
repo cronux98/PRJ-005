@@ -1,0 +1,17 @@
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell 'vec_rom' not found.
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell 'sram' not found.
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell 'cnn_axi_slave' not found.
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell 'bootrom' not found.
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell 'axi_lite_interconnect' not found.
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell 'axi2apb' not found.
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell 'apb_gpio' not found.
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell '$paramod\\apb_uart\\UART_CLK_DIV=s32'00000000000000000000001101100100' not found.
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell '$paramod$5bfa30e084100e28c6ded38e100eb57097d79c9f\\cnn_core' not found.
+      1 Warning 354: run_tt_100C_1v80.tcl line 1, cell '$paramod$388e23a8c4c932833b8c5a703a1388246fc12872\\picorv32_axi' not found.
+      1 Warning 198: out/sta_run/cnn_systolic_synth_sta_sta.v line 52476, module weight_rom not found. Creating black box for u_weight_rom.
+      1 Warning 198: out/sta_run/cnn_systolic_synth_sta_sta.v line 52437, module p1_banks not found. Creating black box for u_p1_banks.
+      1 Warning 198: out/sta_run/cnn_systolic_synth_sta_sta.v line 52428, module img_banks not found. Creating black box for u_img_banks.
+      1 Warning 198: out/sta_run/cnn_systolic_synth_sta_sta.v line 52419, module fm_ram not found. Creating black box for u_fm_ram.
+      1 Warning 198: out/sta_run/cnn_systolic_synth_sta_sta.v line 239870, module vec_rom not found. Creating black box for u_vec_rom.
+      1 Warning 198: out/sta_run/cnn_systolic_synth_sta_sta.v line 239849, module sram not found. Creating black box for u_sram.
+      1 Warning 198: out/sta_run/cnn_systolic_synth_sta_sta.v line 239750, module bootrom not found. Creating black box for u_bootrom.

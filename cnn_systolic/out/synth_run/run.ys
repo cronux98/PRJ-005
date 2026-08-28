@@ -1,0 +1,50 @@
+# =============================================================================
+# fe-yosys synthesis script (yosys 0.68)
+# Placeholders substituted by run_synth.sh: ip/uart_tx.v ip/picorv32.v rtl/apb_gpio.v rtl/axi2apb.v rtl/axi_lite_interconnect.v rtl/cnn_axi_slave.v synth/sram_bbox.v synth/bootrom_bbox.v synth/vec_rom_bbox.v rtl/apb_uart.v rtl/fpu_fp32_add.v rtl/fpu_fp32_mul.v rtl/fpu_bf16_mul.v rtl/fpu_bf16_round.v rtl/fpu_bf16_expand.v rtl/fpu_sigmoid.v rtl/fpu_sigma256.v synth/weight_rom_bbox.v synth/fm_ram_bbox.v synth/img_banks_bbox.v synth/p1_banks_bbox.v rtl/bias_regfile.v rtl/systolic_array.v rtl/conv_ctrl.v rtl/pool_unit.v rtl/fc_datapath.v rtl/cnn_core.v rtl/cnn_systolic.v  cnn_systolic out/synth_run /home/smdadmin/.ciel/ciel/sky130/versions/8afc8346a57fe1ab7934ba5a6056ea8b43078e71/sky130B/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib
+# Default commands are ALWAYS ON. Optional arguments are commented out —
+# uncomment only when the module requires them (see references/05-decision-tree.md).
+# =============================================================================
+
+# --- Stage 1: Read & elaborate ----------------------------------------------
+read_verilog ip/uart_tx.v ip/picorv32.v rtl/apb_gpio.v rtl/axi2apb.v rtl/axi_lite_interconnect.v rtl/cnn_axi_slave.v synth/sram_bbox.v synth/bootrom_bbox.v synth/vec_rom_bbox.v rtl/apb_uart.v rtl/fpu_fp32_add.v rtl/fpu_fp32_mul.v rtl/fpu_bf16_mul.v rtl/fpu_bf16_round.v rtl/fpu_bf16_expand.v rtl/fpu_sigmoid.v rtl/fpu_sigma256.v synth/weight_rom_bbox.v synth/fm_ram_bbox.v synth/img_banks_bbox.v synth/p1_banks_bbox.v rtl/bias_regfile.v rtl/systolic_array.v rtl/conv_ctrl.v rtl/pool_unit.v rtl/fc_datapath.v rtl/cnn_core.v rtl/cnn_systolic.v 
+# Optional read_verilog args (uncomment as needed):
+# read_verilog -sv ip/uart_tx.v ip/picorv32.v rtl/apb_gpio.v rtl/axi2apb.v rtl/axi_lite_interconnect.v rtl/cnn_axi_slave.v synth/sram_bbox.v synth/bootrom_bbox.v synth/vec_rom_bbox.v rtl/apb_uart.v rtl/fpu_fp32_add.v rtl/fpu_fp32_mul.v rtl/fpu_bf16_mul.v rtl/fpu_bf16_round.v rtl/fpu_bf16_expand.v rtl/fpu_sigmoid.v rtl/fpu_sigma256.v synth/weight_rom_bbox.v synth/fm_ram_bbox.v synth/img_banks_bbox.v synth/p1_banks_bbox.v rtl/bias_regfile.v rtl/systolic_array.v rtl/conv_ctrl.v rtl/pool_unit.v rtl/fc_datapath.v rtl/cnn_core.v rtl/cnn_systolic.v           # SystemVerilog features
+# read_verilog -formal ip/uart_tx.v ip/picorv32.v rtl/apb_gpio.v rtl/axi2apb.v rtl/axi_lite_interconnect.v rtl/cnn_axi_slave.v synth/sram_bbox.v synth/bootrom_bbox.v synth/vec_rom_bbox.v rtl/apb_uart.v rtl/fpu_fp32_add.v rtl/fpu_fp32_mul.v rtl/fpu_bf16_mul.v rtl/fpu_bf16_round.v rtl/fpu_bf16_expand.v rtl/fpu_sigmoid.v rtl/fpu_sigma256.v synth/weight_rom_bbox.v synth/fm_ram_bbox.v synth/img_banks_bbox.v synth/p1_banks_bbox.v rtl/bias_regfile.v rtl/systolic_array.v rtl/conv_ctrl.v rtl/pool_unit.v rtl/fc_datapath.v rtl/cnn_core.v rtl/cnn_systolic.v       # SVA assertions (sets -D FORMAL)
+# read_verilog -nolatches ip/uart_tx.v ip/picorv32.v rtl/apb_gpio.v rtl/axi2apb.v rtl/axi_lite_interconnect.v rtl/cnn_axi_slave.v synth/sram_bbox.v synth/bootrom_bbox.v synth/vec_rom_bbox.v rtl/apb_uart.v rtl/fpu_fp32_add.v rtl/fpu_fp32_mul.v rtl/fpu_bf16_mul.v rtl/fpu_bf16_round.v rtl/fpu_bf16_expand.v rtl/fpu_sigmoid.v rtl/fpu_sigma256.v synth/weight_rom_bbox.v synth/fm_ram_bbox.v synth/img_banks_bbox.v synth/p1_banks_bbox.v rtl/bias_regfile.v rtl/systolic_array.v rtl/conv_ctrl.v rtl/pool_unit.v rtl/fc_datapath.v rtl/cnn_core.v rtl/cnn_systolic.v    # forbid latch inference
+
+hierarchy -check -top cnn_systolic
+# Optional hierarchy args:
+# hierarchy -check -top cnn_systolic -libdir <dir>     # auto-read unknown modules
+# hierarchy -check -top cnn_systolic -chparam WIDTH 16 # override parameters
+
+# --- Stage 2: Generic synthesis (always on) ---------------------------------
+synth -top cnn_systolic
+# Optional synth args (uncomment as needed):
+# synth -top cnn_systolic -flatten       # flatten hierarchy
+# synth -top cnn_systolic -lut 4         # LUT architecture
+# synth -top cnn_systolic -nofsm         # skip FSM optimization
+# synth -top cnn_systolic -noabc         # skip abc
+# synth -top cnn_systolic -noalumacc     # keep arithmetic in direct form
+# synth -top cnn_systolic -run coarse:map  # run only part of the script
+
+# --- Stage 3: Standard-cell mapping (OPTIONAL; REQUIRED before OpenSTA) -----
+# Uncomment both lines to map to a Liberty library (e.g. sky130);
+# with LIB given, run_synth.sh also adds "-liberty <LIB>" to the tee'd stat
+# via  -liberty /home/smdadmin/.ciel/ciel/sky130/versions/8afc8346a57fe1ab7934ba5a6056ea8b43078e71/sky130B/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib so the Cell report artifact includes Chip area:
+dfflibmap -liberty /home/smdadmin/.ciel/ciel/sky130/versions/8afc8346a57fe1ab7934ba5a6056ea8b43078e71/sky130B/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib     # map flip-flops/latches to library cells
+abc -liberty /home/smdadmin/.ciel/ciel/sky130/versions/8afc8346a57fe1ab7934ba5a6056ea8b43078e71/sky130B/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib           # map combinational logic to library cells
+
+# --- Stage 4: Checks & reports (always on) ----------------------------------
+check
+# Optional check args:
+# check -nolatches     # fail on inferred latches
+# check -mapped        # check for unmapped internal cells
+# Note: in liberty mode, check may report stale "wire has no driver" problems
+# from the double-ABC run; they do NOT appear in the final netlist (benign).
+
+tee -o out/synth_run/cnn_systolic_stat.txt stat -top cnn_systolic -liberty /home/smdadmin/.ciel/ciel/sky130/versions/8afc8346a57fe1ab7934ba5a6056ea8b43078e71/sky130B/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib
+#  -liberty /home/smdadmin/.ciel/ciel/sky130/versions/8afc8346a57fe1ab7934ba5a6056ea8b43078e71/sky130B/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib = " -liberty <LIB>" in liberty mode -> stat then includes Chip area
+
+write_verilog -noattr -noexpr out/synth_run/cnn_systolic_synth.v
+# Optional write_verilog args:
+# write_verilog -attr2comment -noexpr out/synth_run/cnn_systolic_synth.v

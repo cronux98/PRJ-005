@@ -1,0 +1,65 @@
+%% fsm_diagrams.mmd — cnn_systolic control FSMs (binary encodings, reset states marked)
+
+%% FSM-001 : cnn_axi_slave sequencer (3 states, reset = ST_PARK)
+stateDiagram-v2
+  [*] --> ST_PARK
+  ST_PARK --> ST_RUN : start_i && !busy
+  ST_PARK --> ST_PARK : else
+  ST_RUN --> ST_PARK : done_i
+  ST_RUN --> ST_PARK : parker (PARK=1)
+  ST_RUN --> ST_RUN : else
+
+%% FSM-002 : conv_ctrl layer FSM (7 states, reset = ST_CONV1)
+stateDiagram-v2
+  [*] --> ST_CONV1
+  ST_CONV1 --> ST_CONV1 : !layer_done (FSM-003 conv1 mode)
+  ST_CONV1 --> ST_POOL1 : layer_done
+  ST_POOL1 --> ST_POOL1 : !done (FSM-004 pool1)
+  ST_POOL1 --> ST_CONV2 : done
+  ST_CONV2 --> ST_CONV2 : !done (FSM-003 conv2 mode)
+  ST_CONV2 --> ST_POOL2 : done
+  ST_POOL2 --> ST_POOL2 : !done (FSM-004 pool2)
+  ST_POOL2 --> ST_FC1 : done
+  ST_FC1 --> ST_FC1 : j < 31 (FSM-005 fc1)
+  ST_FC1 --> ST_FC2 : j == 31
+  ST_FC2 --> ST_FC2 : j < 9 (FSM-005 fc2 + argmax)
+  ST_FC2 --> ST_PRESENT : j == 9
+  ST_PRESENT --> ST_DONE : always
+  ST_DONE --> ST_CONV1 : always (done_i pulse, counters reset)
+
+%% FSM-003 : sub-pass sequencer (4 states, reset = ST_BIAS)
+stateDiagram-v2
+  [*] --> ST_BIAS
+  ST_BIAS --> ST_WAVE : always (acc <= bias[grp])
+  ST_WAVE --> ST_WAVE : c < 7 (wavefront feed + pipeline)
+  ST_WAVE --> ST_DRAIN : c == 7
+  ST_DRAIN --> ST_WAVE : k < last_of_group (swap + shadow load)
+  ST_DRAIN --> ST_BIAS : group boundary (conv2: drain g0, grp=1)
+  ST_DRAIN --> ST_DONE_PX : last sub-pass of pixel (drain -> dstage)
+  ST_DONE_PX --> ST_BIAS : next pixel (px++, FM drain writes overlap)
+
+%% FSM-004 : pool FSM (4 states, reset = PH_R0)
+stateDiagram-v2
+  [*] --> PH_R0
+  PH_R0 --> PH_R1 : always (read 2y,2x)
+  PH_R1 --> PH_R2 : always (read 2y,2x+1, max)
+  PH_R2 --> PH_R3 : always (read 2y+1,2x, max)
+  PH_R3 --> PH_WB : always (read 2y+1,2x+1, max)
+  PH_WB --> PH_R0 : always (write p1 banks / FM)
+
+%% FSM-005 : fc MAC sequencer (4 states, reset = PH_BIAS)
+stateDiagram-v2
+  [*] --> PH_BIAS
+  PH_BIAS --> PH_MAC : always (acc <= bias[j], i=0)
+  PH_MAC --> PH_MAC : i < N-1 (read act+w, pipelined MAC)
+  PH_MAC --> PH_ACT : i == N-1
+  PH_ACT --> PH_WB : always (piecewise sigmoid; fc1: bf16 h3 write)
+  PH_WB --> PH_BIAS : j++ (or layer done)
+
+%% FSM-006 : result path (combinational argmax update per FC2 output + present)
+stateDiagram-v2
+  [*] --> IDLE
+  IDLE --> UPDATE : fc2 output j valid (sigma256)
+  UPDATE --> IDLE : j < 9 (strict > argmax)
+  UPDATE --> PRESENT : j == 9 (conf/verdict compute)
+  PRESENT --> IDLE : present strobe

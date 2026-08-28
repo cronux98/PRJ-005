@@ -1,0 +1,2 @@
+attempt 0: period=10ns worst_wns=-889.4786 -> VIOLATION
+attempt 1: period=899.5286ns worst_wns=0.0000 -> ALL CORNERS MET

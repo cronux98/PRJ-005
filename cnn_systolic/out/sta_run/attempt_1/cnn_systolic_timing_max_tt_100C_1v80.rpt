@@ -1,0 +1,32 @@
+Startpoint: u_cnn_axi_slave/_1541_
+            (rising edge-triggered flip-flop clocked by clk)
+Endpoint: u_cnn_core/u_fc_datapath/_1831_
+          (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: max
+
+    Delay      Time   Description
+-------------------------------------------------------------
+   0.0000    0.0000   clock clk (rise edge)
+   0.0000    0.0000   clock network delay (ideal)
+   0.0000    0.0000 ^ u_cnn_axi_slave/_1541_/CLK (sky130_fd_sc_hd__dfxtp_1)
+   0.2777    0.2777 v u_cnn_axi_slave/_1541_/Q (sky130_fd_sc_hd__dfxtp_1)
+ 144.7148  144.9925 ^ u_cnn_axi_slave/_1140_/Y (sky130_fd_sc_hd__nor2_1)
+  75.3265  220.3189 v u_cnn_core/u_fc_datapath/_1278_/Y (sky130_fd_sc_hd__clkinv_1)
+   4.8710  225.1899 ^ u_cnn_core/u_fc_datapath/_1519_/Y (sky130_fd_sc_hd__a211oi_1)
+   0.0000  225.1899 ^ u_cnn_core/u_fc_datapath/_1831_/D (sky130_fd_sc_hd__dfxtp_1)
+           225.1899   data arrival time
+
+ 899.5286  899.5286   clock clk (rise edge)
+   0.0000  899.5286   clock network delay (ideal)
+   0.0000  899.5286   clock reconvergence pessimism
+           899.5286 ^ u_cnn_core/u_fc_datapath/_1831_/CLK (sky130_fd_sc_hd__dfxtp_1)
+  -0.3041  899.2245   library setup time
+           899.2245   data required time
+-------------------------------------------------------------
+           899.2245   data required time
+          -225.1899   data arrival time
+-------------------------------------------------------------
+           674.0347   slack (MET)
+
+

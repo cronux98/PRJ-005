@@ -1,0 +1,215 @@
+schema_version: "1.0"
+stage: fe-arch
+external_interfaces:      # copied faithfully from fe-spec interfaces.yaml (IF-001..IF-005)
+  - id: IF-001
+    name: uart_tx_if
+    protocol: UART
+    role: output
+    clock: clk
+    reset: rst_n
+    timing_budget: {baud_rate: 115200, bit_time_ns: 8680.0, framing: "8N1, LSB-first, idle-high mark"}
+    signals:
+      - {name: uart_tx, dir: output, width: 1, active: high, description: "Serial TX pin; idle-high (mark)"}
+  - id: IF-002
+    name: led_status_if
+    protocol: GPIO
+    role: output
+    clock: clk
+    reset: rst_n
+    timing_budget: {}
+    signals:
+      - {name: led, dir: output, width: 12, active: high, description: "GPIO_OUT[11:0]: [9:0] one-hot pred / 0 on TRASH, [10] fail, [11] busy"}
+  - id: IF-003
+    name: axil_master
+    protocol: AXI4-Lite
+    role: master
+    clock: clk
+    reset: rst_n
+    timing_budget: {write_response_max_cycles: 1, read_response_max_cycles: 3}
+    signals:
+      - {name: mem_axi_awvalid, dir: output, width: 1}
+      - {name: mem_axi_awready, dir: input,  width: 1}
+      - {name: mem_axi_awaddr,  dir: output, width: 32}
+      - {name: mem_axi_awprot,  dir: output, width: 3}
+      - {name: mem_axi_wvalid,  dir: output, width: 1}
+      - {name: mem_axi_wready,  dir: input,  width: 1}
+      - {name: mem_axi_wdata,   dir: output, width: 32}
+      - {name: mem_axi_wstrb,   dir: output, width: 4}
+      - {name: mem_axi_bvalid,  dir: input,  width: 1}
+      - {name: mem_axi_bready,  dir: output, width: 1}
+      - {name: mem_axi_arvalid, dir: output, width: 1}
+      - {name: mem_axi_arready, dir: input,  width: 1}
+      - {name: mem_axi_araddr,  dir: output, width: 32}
+      - {name: mem_axi_arprot,  dir: output, width: 3}
+      - {name: mem_axi_rvalid,  dir: input,  width: 1}
+      - {name: mem_axi_rready,  dir: output, width: 1}
+      - {name: mem_axi_rdata,   dir: input,  width: 32}
+  - id: IF-004
+    name: apb_bus
+    protocol: APB4
+    role: master
+    clock: clk
+    reset: rst_n
+    timing_budget: {setup_cycles: 1, access_cycles: 1, read_response_max_cycles: 3}
+    signals:
+      - {name: psel,    dir: output, width: 1}
+      - {name: penable, dir: output, width: 1}
+      - {name: pwrite,  dir: output, width: 1}
+      - {name: paddr,   dir: output, width: 12}
+      - {name: pwdata,  dir: output, width: 32}
+      - {name: prdata,  dir: input,  width: 32}
+      - {name: pready,  dir: input,  width: 1}
+  - id: IF-005
+    name: cnn_core_if
+    protocol: custom
+    role: slave
+    clock: clk
+    reset: rst_n
+    timing_budget: {park_response_max_cycles: 2}
+    signals:
+      - {name: core_rst_n, dir: output, width: 1,  active: low,  description: "Core park (0 = synchronous-reset idle)"}
+      - {name: start,      dir: output, width: 1,  active: high, description: "1-cycle launch strobe"}
+      - {name: exp_label,  dir: output, width: 4,  active: high, description: "Expected label [3:0]"}
+      - {name: img_waddr,  dir: output, width: 10, active: high, description: "Image pixel write address 0..783"}
+      - {name: img_wdata,  dir: output, width: 8,  active: high, description: "Image pixel write data"}
+      - {name: img_we,     dir: output, width: 1,  active: high, description: "Image pixel write enable"}
+      - {name: pred,       dir: input,  width: 4,  active: high, description: "Prediction 0..9"}
+      - {name: conf,       dir: input,  width: 7,  active: high, description: "Confidence 0..100"}
+      - {name: verdict,    dir: input,  width: 2,  active: high, description: "0/1/2"}
+      - {name: busy,       dir: input,  width: 1,  active: high, description: "Core busy"}
+      - {name: done,       dir: input,  width: 1,  active: high, description: "1-cycle result strobe"}
+
+internal_interfaces:
+  - id: IFI-004
+    name: img_write_broadcast
+    from_block: BLK-009
+    to_block: BLK-016
+    clock: clk
+    type: valid_only
+    semantics:
+      valid_may_depend_on_ready: false
+      data_stable_while_stalled: true
+      backpressure: false
+    signals:
+      - {name: iw_addr,   dir: from_source, width: 10, description: "Pixel address 0..783 (row-major py*28+px)"}
+      - {name: iw_data,   dir: from_source, width: 8,  description: "Pixel value 0..255"}
+      - {name: iw_en,     dir: from_source, width: 1,  description: "Write strobe (1 cycle)"}
+  - id: IFI-005
+    name: img_read_9
+    from_block: BLK-011
+    to_block: BLK-016
+    clock: clk
+    type: memory_port
+    signals:
+      - {name: ir_addr, dir: from_source, width: 10, description: "Shared address oy*28+ox"}
+      - {name: ir_data, dir: from_sink,   width: 72, description: "9 banks x 8-bit (bank t = tap t)"}
+  - id: IFI-006
+    name: array_feed
+    from_block: BLK-011
+    to_block: BLK-010
+    clock: clk
+    type: control
+    signals:
+      - {name: af_act,    dir: from_source, width: 16, description: "Wavefront activation for the entering column (BF16)"}
+      - {name: af_adv,    dir: from_source, width: 1,  description: "Advance wavefront (1 per feed cycle)"}
+      - {name: af_wdata,  dir: from_source, width: 128, description: "Shadow weight load data (8 cols x 16b)"}
+      - {name: af_wload,  dir: from_source, width: 8,  description: "Per-column shadow load enable"}
+      - {name: af_swap,   dir: from_source, width: 1,  description: "w_a <= w_s at sub-pass boundary"}
+      - {name: af_bias,   dir: from_source, width: 256, description: "Bias init data (8 rows x 32b FP32)"}
+      - {name: af_biasen, dir: from_source, width: 1,  description: "Bias init strobe"}
+      - {name: af_drain,  dir: from_source, width: 1,  description: "Drain strobe (8 accs out)"}
+  - id: IFI-007
+    name: array_drain
+    from_block: BLK-010
+    to_block: BLK-011
+    clock: clk
+    type: status
+    signals:
+      - {name: ad_data, dir: from_source, width: 256, description: "8 rows x 32b FP32 accumulators (valid on drain)"}
+  - id: IFI-008
+    name: weight_parallel
+    from_block: BLK-011
+    to_block: BLK-014
+    clock: clk
+    type: memory_port
+    signals:
+      - {name: wp_addr, dir: from_source, width: 96, description: "8 bank read addresses (12b each)"}
+      - {name: wp_data, dir: from_sink,   width: 128, description: "8 x 16b BF16 words (bank b = wp_data[16b+15:16b])"}
+      - {name: wp_biasaddr, dir: from_source, width: 16, description: "Bias staging read address (serial)"}
+      - {name: wp_biasdata, dir: from_sink,   width: 16, description: "Bias staging read data"}
+  - id: IFI-009
+    name: fm_port
+    from_block: BLK-011
+    to_block: BLK-015
+    clock: clk
+    type: memory_port
+    signals:
+      - {name: fm_addr,  dir: from_source, width: 13, description: "Word address 0..8191"}
+      - {name: fm_wdata, dir: from_source, width: 16, description: "BF16 write data"}
+      - {name: fm_we,    dir: from_source, width: 1,  description: "Write enable"}
+      - {name: fm_rdata, dir: from_sink,   width: 16, description: "BF16 read data (registered)"}
+  - id: IFI-010
+    name: p1_port
+    from_block: BLK-012
+    to_block: BLK-017
+    clock: clk
+    type: memory_port
+    signals:
+      - {name: p1_addr,  dir: from_source, width: 8,  description: "Shared address (oy*14+ox read / write)"}
+      - {name: p1_wdata, dir: from_source, width: 128, description: "8 channels x 16b write data"}
+      - {name: p1_we,    dir: from_source, width: 8,  description: "Per-channel write enables"}
+      - {name: p1_rdata, dir: from_sink,   width: 128, description: "8 x 16b read data + zero mux (conv2 OOB)"}
+  - id: IFI-011
+    name: fm_fc_port
+    from_block: BLK-013
+    to_block: BLK-015
+    clock: clk
+    type: memory_port
+    signals:
+      - {name: ff_addr,  dir: from_source, width: 13}
+      - {name: ff_wdata, dir: from_source, width: 16}
+      - {name: ff_we,    dir: from_source, width: 1}
+      - {name: ff_rdata, dir: from_sink,   width: 16}
+    notes: "FC reads p2 (6272+i) / h3 (i) at 1 word/cycle; writes h3[j] at FM[j]."
+  - id: IFI-012
+    name: weight_serial
+    from_block: BLK-013
+    to_block: BLK-014
+    clock: clk
+    type: memory_port
+    signals:
+      - {name: ws_addr, dir: from_source, width: 15, description: "Flat word address (bank = addr%8)"}
+      - {name: ws_data, dir: from_sink,   width: 16, description: "BF16 word"}
+  - id: IFI-013
+    name: result_if
+    from_block: BLK-013
+    to_block: BLK-009
+    clock: clk
+    type: status
+    signals:
+      - {name: res_pred,    dir: from_source, width: 4, description: "best_idx"}
+      - {name: res_conf,    dir: from_source, width: 7, description: "confidence 0..100"}
+      - {name: res_verdict, dir: from_source, width: 2, description: "0/1/2"}
+      - {name: res_busy,    dir: from_source, width: 1, description: "busy (from ST_RUN)"}
+      - {name: res_done,    dir: from_source, width: 1, description: "done pulse (ST_DONE)"}
+
+blocks:
+  - {id: BLK-001, module: cnn_systolic,       clock_domain: CD_CORE, reset: rst_n, source: custom, params: [UART_CLK_DIV, BOOT_HEX_FILE, IMAGES_HEX_FILE, LABELS_HEX_FILE, WEIGHTS_HEX_FILE]}
+  - {id: BLK-002, module: axi_lite_interconnect, clock_domain: CD_CORE, reset: rst_n, source: ip, params: []}
+  - {id: BLK-003, module: bootrom,            clock_domain: CD_CORE, reset: rst_n, source: ip, params: [BOOT_HEX_FILE]}
+  - {id: BLK-004, module: sram,               clock_domain: CD_CORE, reset: rst_n, source: ip, params: []}
+  - {id: BLK-005, module: vec_rom,            clock_domain: CD_CORE, reset: rst_n, source: ip, params: [IMAGES_HEX_FILE, LABELS_HEX_FILE]}
+  - {id: BLK-006, module: axi2apb,            clock_domain: CD_CORE, reset: rst_n, source: ip, params: []}
+  - {id: BLK-007, module: apb_uart,           clock_domain: CD_CORE, reset: rst_n, source: ip, params: [UART_CLK_DIV]}
+  - {id: BLK-008, module: apb_gpio,           clock_domain: CD_CORE, reset: rst_n, source: ip, params: []}
+  - {id: BLK-009, module: cnn_axi_slave,      clock_domain: CD_CORE, reset: rst_n, source: custom, params: []}
+  - {id: BLK-010, module: systolic_array,     clock_domain: CD_CORE, reset: rst_n, source: custom, params: []}
+  - {id: BLK-011, module: conv_ctrl,          clock_domain: CD_CORE, reset: rst_n, source: custom, params: []}
+  - {id: BLK-012, module: pool_unit,          clock_domain: CD_CORE, reset: rst_n, source: custom, params: []}
+  - {id: BLK-013, module: fc_datapath,        clock_domain: CD_CORE, reset: rst_n, source: custom, params: []}
+  - {id: BLK-014, module: weight_rom,         clock_domain: CD_CORE, reset: rst_n, source: custom, params: [WEIGHTS_HEX_FILE]}
+  - {id: BLK-015, module: fm_ram,             clock_domain: CD_CORE, reset: rst_n, source: custom, params: []}
+  - {id: BLK-016, module: img_banks,          clock_domain: CD_CORE, reset: rst_n, source: custom, params: []}
+  - {id: BLK-017, module: p1_banks,           clock_domain: CD_CORE, reset: rst_n, source: custom, params: []}
+  - {id: BLK-018, module: picorv32_axi,       clock_domain: CD_CORE, reset: rst_n, source: ip, params: [PROGADDR_RESET, STACKADDR, ENABLE_MUL, ENABLE_DIV, ENABLE_FAST_MUL, COMPRESSED_ISA, ENABLE_IRQ, ENABLE_COUNTERS, ENABLE_COUNTERS64, CATCH_MISALIGN, CATCH_ILLINSN, ENABLE_PCPI]}
+  - {id: BLK-019, module: uart_tx,            clock_domain: CD_CORE, reset: rst_n, source: ip, params: [CLK_DIV]}

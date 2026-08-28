@@ -37,3 +37,11 @@ cnn_soc/verify/**/__pycache__/
 # Transient P-stage worker dispatch scratch (prompts/logs); *.log already caught above.
 .p4_worker_prompt.txt
 .*_worker_prompt.txt
+
+# cnn_systolic (PRJ-005 v3 ASIC) verification EVIDENCE is versioned too (same policy).
+!cnn_systolic/verify/iterations.log
+!cnn_systolic/verify/run-*/
+!cnn_systolic/verify/run-*/**
+cnn_systolic/verify/run-*/**/*.vvp
+cnn_systolic/verify/**/sim_build/
+cnn_systolic/verify/**/__pycache__/

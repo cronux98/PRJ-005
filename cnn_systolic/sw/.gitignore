@@ -1,0 +1,4 @@
+# build intermediates (regenerable via build_post.sh)
+*.o
+*.elf
+*.dis

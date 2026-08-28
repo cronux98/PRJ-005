@@ -1,0 +1,118 @@
+schema_version: "1.0"
+stage: fe-arch
+generated_for: fe-rtl
+project_name: "cnn_systolic"
+source_spec: {manifest: spec/spec_manifest.yaml, verified: true}
+technology: {pdk: sky130, node_nm: 130, stdcell_lib: sky130_fd_sc_hd, core_voltage_v: 1.8}
+constraints: {rtl_language: verilog-2001, dft: none, custom_analog: false}
+scope_notes: >
+  Sky130 ASIC. Fully SYNCHRONOUS active-low rst_n (shell-verbatim precedent, RST-001/REQ-035).
+  No formal/GLS/equivalence anywhere (REQ-041). OI-001 (SRAM macro PDK-verify) and OI-003 (shell
+  sram mapping) remain open for fe-rtl/fe-yosys; OI-002 (BF16 accuracy) RESOLVED at P1: 96.08%
+  full-set vs the Q8.8 baseline's 96.35%.
+
+artifacts:
+  - {file: arch.md, present: true}
+  - {file: block_diagram.mmd, present: true}
+  - {file: fsm_diagrams.mmd, present: true}
+  - {file: interface_defs.yaml, present: true}
+  - {file: cdc_plan.md, present: true}
+  - {file: power_plan.md, present: true}
+  - {file: rtl_coding_guidelines.md, present: true}
+  - {file: systolic_dataflow.md, present: true}     # binding sub-spec (accumulate order)
+  - {file: tiling_plan.md, present: true}           # binding sub-spec (conv1 2 passes, conv2 18)
+  - {file: piecewise_sigmoid.md, present: true}     # binding sub-spec (exact dyadic table)
+  - {file: golden_model/golden_ref_model.c, present: true}
+  - {file: golden_model/golden_model_test_vectors.h, present: true}
+  - {file: golden_model/expected_vectors.txt, present: true}
+  - {file: golden_model/expected_outputs.txt, present: true}
+  - {file: golden_model/expected.hex, present: true}
+  - {file: golden_model/stimulus.hex, present: true}
+  - {file: golden_model/labels.hex, present: true}
+  - {file: golden_model/weights_bf16.hex, present: true}
+  - {file: golden_model/export_bf16.py, present: true}
+  - {file: golden_model/check_fp.py, present: true}
+  - {file: golden_model/README.md, present: true}
+
+module_list:                    # fe-rtl must produce exactly these (11 custom + 8 reused verbatim)
+  - {block: BLK-001, module: cnn_systolic,       source: custom, clock: clk, reset: rst_n, params: [UART_CLK_DIV, BOOT_HEX_FILE, IMAGES_HEX_FILE, LABELS_HEX_FILE, WEIGHTS_HEX_FILE]}
+  - {block: BLK-002, module: axi_lite_interconnect, source: ip, clock: clk, reset: rst_n, repo: "local: cnn_soc/rtl/axi_lite_interconnect.v", commit: null, license: project-internal, status: verified, verbatim: true, params: []}
+  - {block: BLK-003, module: bootrom,            source: ip, clock: clk, reset: rst_n, repo: "local: cnn_soc/rtl/bootrom.v", commit: null, license: project-internal, status: verified, verbatim: true, params: [BOOT_HEX_FILE]}
+  - {block: BLK-004, module: sram,               source: ip, clock: clk, reset: rst_n, repo: "local: cnn_soc/rtl/sram.v", commit: null, license: project-internal, status: verified, verbatim: true, params: [], note: "behavioral 128 KB RAM; Sky130 macro mapping is an fe-yosys decision (OI-003)"}
+  - {block: BLK-005, module: vec_rom,            source: ip, clock: clk, reset: rst_n, repo: "local: cnn_soc/rtl/vec_rom.v", commit: null, license: project-internal, status: verified, verbatim: true, params: [IMAGES_HEX_FILE, LABELS_HEX_FILE]}
+  - {block: BLK-006, module: axi2apb,            source: ip, clock: clk, reset: rst_n, repo: "local: cnn_soc/rtl/axi2apb.v", commit: null, license: project-internal, status: verified, verbatim: true, params: []}
+  - {block: BLK-007, module: apb_uart,           source: ip, clock: clk, reset: rst_n, repo: "local: cnn_soc/rtl/apb_uart.v", commit: null, license: project-internal, status: verified, verbatim: true, params: [UART_CLK_DIV]}
+  - {block: BLK-008, module: apb_gpio,           source: ip, clock: clk, reset: rst_n, repo: "local: cnn_soc/rtl/apb_gpio.v", commit: null, license: project-internal, status: verified, verbatim: true, params: []}
+  - {block: BLK-009, module: cnn_axi_slave,      source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-010, module: systolic_array,     source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-011, module: conv_ctrl,          source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-012, module: pool_unit,          source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-013, module: fc_datapath,        source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-014, module: weight_rom,         source: custom, clock: clk, reset: rst_n, params: [WEIGHTS_HEX_FILE]}
+  - {block: BLK-015, module: fm_ram,             source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-016, module: img_banks,          source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-017, module: p1_banks,           source: custom, clock: clk, reset: rst_n, params: []}
+  - {block: BLK-018, module: picorv32_axi,       source: ip, clock: clk, reset: rst_n, repo: "local: cnn_soc/ip/picorv32.v", commit: null, license: ISC, status: verified, verbatim: true, params: [PROGADDR_RESET, STACKADDR, ENABLE_MUL, ENABLE_DIV, ENABLE_FAST_MUL, COMPRESSED_ISA, ENABLE_IRQ, ENABLE_COUNTERS, ENABLE_COUNTERS64, CATCH_MISALIGN, CATCH_ILLINSN, ENABLE_PCPI]}
+  - {block: BLK-019, module: uart_tx,            source: ip, clock: clk, reset: rst_n, repo: "local: cnn_soc/ip/uart_tx.v", commit: null, license: project-internal, status: verified, verbatim: true, params: [CLK_DIV]}
+
+memory_blackboxes:              # OpenRAM sky130_sram_* — PDK-verified at fe-rtl (OI-001); flop fallback allowed
+  - {class: "sky130_sram_* (OpenRAM)", instances: 26, usage: "8x4,096x16 weight banks + 9x1,024x8 img banks + 8x256x16 p1 banks + 1x8,192x16 fm_ram"}
+
+filelist_notes: >
+  fe-rtl filelist must include: the 11 new rtl/*.v files; the 8 reused shell files copied
+  verbatim from cnn_soc/rtl + cnn_soc/ip (picorv32.v, uart_tx.v, axi_lite_interconnect.v,
+  bootrom.v, sram.v, vec_rom.v, axi2apb.v, apb_uart.v, apb_gpio.v); SRAM-macro stubs;
+  parameters for vec_rom -> arch/golden_model/{stimulus.hex,labels.hex} and weight_rom ->
+  arch/golden_model/weights_bf16.hex. Compile gate: iverilog -g2001.
+
+clock_domains:
+  - {id: CLK-001, name: clk, domain: CD_CORE, period_ns: 10.000, async_with: []}
+cdc_paths: []
+
+memories:
+  - {id: MEM-001, instance: weight_banks, block: BLK-014, depth: 26698, width: 16, init: "weights_bf16.hex (BF16, 8 interleaved banks)"}
+  - {id: MEM-002, instance: img_banks,    block: BLK-016, depth: 784,   width: 8,  init: none, note: "9 pre-shifted banks (tap t = iy*3+ix), write-side zero-padding"}
+  - {id: MEM-003, instance: p1_banks,     block: BLK-017, depth: 196,   width: 16, init: none, note: "8 per-channel banks (256x16 macros)"}
+  - {id: MEM-004, instance: fm_ram,       block: BLK-015, depth: 8192,  width: 16, init: none, note: "h1 0..6271, h2 0..3135, p2 6272..7055, h3 0..31"}
+  - {id: MEM-005, instance: bias_regfile, block: BLK-011, depth: 66,    width: 16, init: "staged from weight banks at layer start"}
+  - {id: MEM-006, instance: bootrom,      block: BLK-003, depth: 4096,  width: 8,  init: "BOOT_HEX_FILE", reused: true}
+  - {id: MEM-007, instance: sram,         block: BLK-004, depth: 32768, width: 32, init: none, reused: true, note: "stack only; OI-003"}
+  - {id: MEM-008, instance: vec_rom,      block: BLK-005, depth: 78500, width: 8,  init: "stimulus.hex + labels.hex", reused: true}
+
+counts:
+  blocks: 19              # 11 custom + 8 reused ip (picorv32_axi + 7 shell + uart_tx counted as ip)
+  fsms: 6                 # FSM-001 slave sequencer, FSM-002 layer, FSM-003 sub-pass, FSM-004 pool, FSM-005 fc MAC, FSM-006 result
+  internal_interfaces: 10 # IFI-004..IFI-013
+  memories: 8
+  cdc_paths: 0
+  ip_reused: 8
+  blackboxes: 26          # SRAM macro instances (4 classes; OI-001)
+
+golden_model:
+  granularity: transaction        # per-image + per-vector
+  vector_count: 70                # directed vectors (hand-derived expected values, 70/70 match)
+  image_set: 100                  # demo set written to expected.hex/stimulus.hex/labels.hex
+  full_set: 10000                 # accuracy run
+  accuracy: "96.08% (9608/142/250) vs Q8.8 baseline 96.35%"
+  output_format: "UART lines + 'VEC %03u k=%u din=0x%08X_%08X dout=0x%08X' (--vectors)"
+  stimulus_hex: golden_model/stimulus.hex
+  expected_hex: golden_model/expected.hex
+  expected_outputs_txt: golden_model/expected_outputs.txt
+  weights_bf16_hex: golden_model/weights_bf16.hex
+  build_command: "gcc -std=c99 -O2 -Wall -Wextra -o gm golden_ref_model.c && ./gm . && ./gm --vectors | diff -u expected_vectors.txt -"
+  executed_by_skill: true         # J1 documented judgment (autonomy override 2026-08-28): the brief
+                                  # lists weights_bf16.hex + regenerated expected outputs as P1
+                                  # deliverables; precedent: mnist_npu/cnn fe-arch runs. Logged in
+                                  # WORKLOG.md + flagged in the final report.
+  cross_checked: "export 26698/26698; vectors 70/70; numpy twin 100/100 images; G6 byte-identical re-run"
+
+review_gate:
+  all_must_requirements_mapped: true
+  every_block_has_clock_and_reset: true
+  every_fsm_has_full_transition_table: true
+  every_cdc_has_mechanism_and_module: true     # trivially: 0 crossings, stated in cdc_plan.md
+  no_dft_structures: true
+  no_systemverilog_in_examples: true
+  golden_model_deterministic: true             # verified: byte-identical re-run (G6)
+
+open_issues: []

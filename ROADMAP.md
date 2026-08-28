@@ -20,6 +20,7 @@ process; we never start over.
 | qat | COMPLETE | Honest negative (QAT ≤ integer baseline) |
 | **cnn (v2)** | **FULL GREEN** | **96.35%, 200/200 bit-exact, cocotb 19/19** (44a1e4e) |
 | learn_accel (rinriAI) | VERIFIED-WITH-2-FINDINGS | 2.4M samples mism=0; authoring paused by Rinri |
+| **cnn_systolic (v3 ASIC)** | **IN FLIGHT (2026-08-28)** | BF16 8x8 systolic + serial FP FC, front-end chain, gates: func-cov/STA/firmware |
 
 **Key facts of the verified engine (cnn):** 28×28×1 input, conv1 3×3 1→8ch,
 pool 2×2, conv2 3×3 8→16ch, pool 2×2, FC1 784→32, FC2 32→10, Q8.8 fixed point,

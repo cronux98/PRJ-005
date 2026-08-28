@@ -12,6 +12,7 @@ fe-opensta → fe-sby → … → fe-regression) and are verified in simulation 
 |-----------|---------|--------------|
 | `learn_accel/` | **rinriAI** (training + inference) | MLP (784-32-10) that *learns*: streams labeled MNIST-class samples, online SGD per sample (forward = inference, backward + weight update = training), freeze bit for inference-only, APB CSR + streaming interface, live correct/error counters. |
 | `mnist_npu/` | **MNIST inference NPU** (inference only) | Tiny inference-only accelerator: pre-trained Q8.8 weights + dataset loaded from memory ($readmemh BRAM), LUT sigmoid, single MAC forward pass, argmax; LED 0-9 digit display, LED10 trash/failure, LED11 busy blink, UART TX "This is number N | confidence % | expected | CORRECT/INCORRECT". No training, no host CPU. |
+| `cnn_systolic/` | **ASIC CNN accelerator** (started 2026-08-28) | Sky130-targeted, front-end only: 8x8 BF16 systolic array for conv layers + serial FP FC datapath + piecewise sigmoid, same picorv32 AXI->APB SoC shell + reg map + UART format as cnn_soc. BF16 exported from the trained float masters (no retraining), bit-exact mirrored-dataflow golden. Gates: functional verify + coverage, fe-opensta, fe-firmware (no formal/GLS/equiv per Rinri). See cnn_systolic/BRIEF.md. |
 
 ## Repo history
 

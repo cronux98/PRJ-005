@@ -1,0 +1,51 @@
+schema_version: "1.0"
+stage: fe-spec
+generated_for: fe-arch
+project_name: "cnn_systolic"
+technology: {pdk: sky130, node_nm: 130, core_voltage_v: 1.8}
+constraints: {rtl_language: verilog-2001, dft: none, custom_analog: false}
+scope_notes: >
+  Sky130 ASIC (this project is NOT fpga_generic — it is the first ASIC-targeted member of the
+  PRJ-005 family; the fpga_generic deviation of cnn/cnn_soc does NOT carry forward). Reset stays
+  fully SYNCHRONOUS active-low (shell verbatim reuse precedent, spec.md §2.1 deviation 1).
+  Formal/GLS/equivalence explicitly OUT of scope (BRIEF.md decision 5, REQ-041).
+artifacts:
+  - {file: spec.md,               present: true}
+  - {file: requirements.yaml,     present: true}
+  - {file: interfaces.yaml,       present: true}
+  - {file: verification_plan.md,  present: true}
+counts:
+  requirements: 41
+  assumptions: 9
+  interfaces: 5
+  clock_domains: 1
+  cdc_paths: 0
+  ip_reuse_candidates: 5
+  verification_items_top: 9
+  verification_items_module: 22
+review_gate:
+  all_requirements_measurable: true
+  all_requirements_traced: true
+  no_orphan_verification_items: true
+  no_contradictions_found: true
+  cdc_enumerated: true    # trivially true: 0 crossings in a single-clock-domain design (REQ-034)
+  frequency_sanity_checked: true   # 100 MHz single domain, 1 outstanding txn; per-image compute
+                                   # ~748,653 cycles <= 750,000 BUSY bound (ASM-008, J6); G5 150M
+                                   # budget holds (100 x 750K = 75M + UART 60M @ CLK_DIV=868 + fw)
+blocking_open_issues: []   # OI-001..003 are non-blocking (PDK-verify / measure / fe-yosys decision)
+unconfirmed_assumptions: [ASM-001, ASM-002, ASM-003, ASM-004, ASM-005, ASM-006, ASM-007, ASM-008, ASM-009]
+assumptions_acknowledged: true
+assumption_acknowledgement_note: >
+  Acknowledged under the 2026-08-28 18:31Z autonomy override (Rinri: "make the best documented
+  judgment, log it in WORKLOG.md, proceed, flag it in the final report"). Every ASM is either
+  project precedent (ASM-001/002), a pinned arithmetic/dataflow decision mirrored by the golden
+  (ASM-003..006, ASM-009), a memory-banking plan with PDK-verify gate (ASM-007), or a cycle-budget
+  derivation (ASM-008). All are logged as J1..J8 in WORKLOG.md and flagged in the P0/P1 final
+  report. cnn_soc precedent for the acknowledgement mechanism.
+golden_reference:
+  frozen: false
+  location: "arch/golden_model/ (NEW FP golden — golden_ref_model.c, export_bf16.py, check_fp.py, weights_bf16.hex, stimulus.hex, labels.hex, expected.hex, expected_outputs.txt)"
+  note: >
+    The Q8.8 golden of cnn is NOT the contract here (BRIEF.md decision 9: expected outputs are
+    REGENERATED from the new FP golden). The float weight masters (../cnn/arch/golden_model/
+    weights_float.npz) and MNIST test data (../cnn/data/) remain frozen read-only inputs.

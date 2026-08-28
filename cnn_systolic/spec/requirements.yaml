@@ -1,0 +1,529 @@
+schema_version: "1.0"
+stage: fe-spec
+project:
+  name: "cnn_systolic"
+  technology: sky130
+  node_nm: 130
+  rtl_language: verilog-2001
+  dft: none
+  custom_analog: false
+
+requirements:
+  - id: REQ-001
+    title: "SoC scope: CPU + AXI interconnect + 5 regions + APB peripherals + BF16 systolic CNN core"
+    category: functional
+    description: "cnn_systolic shall integrate the picorv32_axi RV32I CPU, a single-master simplified AXI4-Lite interconnect, five slave regions (bootrom, SRAM, vec_rom, AXI2APB, cnn_axi_slave), two APB peripherals (UART, GPIO/LED), and the new BF16 systolic CNN accelerator (8x8 array for conv, serial FP FC, piecewise sigmoid), such that firmware booting from the bootrom feeds 100 images one at a time and produces the golden UART stream and LED patterns."
+    priority: must
+    measurable_target: "100-image demo completes; G1/G2/G3 gates pass (verification_plan.md §5)"
+    source: user_brief
+    rationale: "BRIEF.md architectural mandates; cnn_soc shell reuse"
+    verification: {method: simulation, items: [VP-TOP-002, VP-TOP-006]}
+    status: agreed
+  - id: REQ-002
+    title: "CPU = picorv32_axi verbatim, fixed parameters"
+    category: interface
+    description: "cnn_systolic shall instantiate picorv32_axi (cnn_soc/ip/picorv32.v) verbatim with PROGADDR_RESET=32'h0000_0000, STACKADDR=32'h0003_0000, ENABLE_MUL=0, ENABLE_DIV=0, ENABLE_FAST_MUL=0, COMPRESSED_ISA=0, ENABLE_IRQ=0, ENABLE_COUNTERS=0, ENABLE_COUNTERS64=0, CATCH_MISALIGN=0, CATCH_ILLINSN=0, ENABLE_PCPI=0; all other parameters at file defaults. PCPI inputs tied off, irq=32'd0."
+    priority: must
+    measurable_target: "Instantiation parameter list matches exactly (inspection); boots at 0x0000_0000"
+    source: user_brief
+    rationale: "Shell verbatim reuse (BRIEF.md); cnn_soc REQ-002"
+    verification: {method: inspection, items: [VP-CPU-001]}
+    status: agreed
+  - id: REQ-003
+    title: "Boot flow: fetch at 0x0, boot stub, execute in place"
+    category: functional
+    description: "After rst_n release the CPU shall fetch its first instruction from 0x0000_0000 (bootrom) and execute the boot stub (sp=0x0003_0000, jal main); firmware .text/.rodata execute in place from the bootrom with no copy-to-SRAM step."
+    priority: must
+    measurable_target: "First fetch at 0x0000_0000; main() reached; first UART line within REQ-037 budget"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-003"
+    verification: {method: simulation, items: [VP-TOP-001, VP-TOP-006]}
+    status: agreed
+  - id: REQ-004
+    title: "Firmware is a pure-ROM image that fits the 4 KB bootrom"
+    category: functional
+    description: "The v1 firmware shall be a pure-ROM image: exactly 0 bytes of .data and 0 bytes of .bss (constants in .rodata, variables on the stack), and .text+.rodata shall link within the 4 KB bootrom (size <= 0x1000 bytes)."
+    priority: must
+    measurable_target: "linker map: .data size==0, .bss size==0, .text+.rodata <= 0x1000 bytes"
+    source: derived
+    rationale: "cnn_soc REQ-004 (harness reuse)"
+    verification: {method: simulation, items: [VP-FW-001, VP-BOOT-001]}
+    status: agreed
+  - id: REQ-005
+    title: "Simplified AXI4-Lite response contract (no BRESP/RRESP, no hangs)"
+    category: interface
+    description: "The CPU shall use the picorv32_axi built-in simplified AXI4-Lite master: AW and W issued together, completion = bvalid||rvalid, no BRESP/RRESP/ID. Every slave shall accept a transaction combinationally when idle and assert a 1-cycle response: bvalid exactly 1 cycle after the write-accept cycle; rvalid with rdata exactly 1 cycle after the read-accept cycle for memory/register slaves and no later than 3 cycles after the accept cycle for the AXI2APB bridge; slaves shall never wait for bready/rready."
+    priority: must
+    measurable_target: "All read/write transactions across all regions complete; 0 hangs; response timing as specified"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-005"
+    verification: {method: simulation, items: [VP-IC-001, VP-APB-001]}
+    status: agreed
+  - id: REQ-006
+    title: "Combinational address decode with never-hang unmapped handling"
+    category: interface
+    description: "The interconnect shall decode transactions combinationally on addr[31:28] into exactly the five regions of REQ-007; any address outside the five regions shall complete with rdata=0 for reads, no write for writes, and the same response timing as a memory slave."
+    priority: must
+    measurable_target: "Directed test over every window incl. all unmapped windows: 0 responses hang, reads return 0"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-006"
+    verification: {method: simulation, items: [VP-IC-001]}
+    status: agreed
+  - id: REQ-007
+    title: "Memory map: five regions with exact bases and sizes"
+    category: interface
+    description: "The five regions shall be: bootrom 0x0000_0000 (4 KB), SRAM 0x0001_0000 (128 KB), vec_rom 0x1000_0000 (78,500 B), AXI2APB window 0x4000_0000, cnn_axi_slave window 0x5000_0000. Within window 0x0 only bootrom and SRAM ranges are mapped."
+    priority: must
+    measurable_target: "Decode table exactly as specified (directed test on boundary addresses)"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-007"
+    verification: {method: simulation, items: [VP-IC-001]}
+    status: agreed
+  - id: REQ-008
+    title: "bootrom: 4 KB RO/exec, $readmemh BOOT_HEX_FILE, 1-cycle read"
+    category: interface
+    description: "bootrom shall be 4 KB read-only memory at 0x0000_0000 with a 1-cycle registered read latency, initialised by $readmemh from the BOOT_HEX_FILE parameter; writes shall be ignored."
+    priority: must
+    measurable_target: "All 4 KB read back == BOOT_HEX_FILE contents; write has no effect; rvalid 1 cycle after accept"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-008"
+    verification: {method: simulation, items: [VP-BOOT-001]}
+    status: agreed
+  - id: REQ-009
+    title: "SRAM: 128 KB RW with wstrb byte-enables at 0x0001_0000"
+    category: interface
+    description: "SRAM shall be 128 KB read/write memory at 0x0001_0000 with a 1-cycle registered read latency, honouring wstrb byte-enables; it holds the firmware stack, top at 0x0003_0000. Behavioral RAM reused verbatim from cnn_soc; Sky130 physical mapping (macro vs flops) is an fe-yosys decision (OI-003)."
+    priority: must
+    measurable_target: "Round-trip at both boundaries and interior addresses; byte-lane writes update only enabled lanes"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-009"
+    verification: {method: simulation, items: [VP-SRAM-001, VP-IC-002]}
+    status: agreed
+  - id: REQ-010
+    title: "vec_rom: read-only 78,500 B image/label source"
+    category: interface
+    description: "vec_rom shall be a read-only region at 0x1000_0000 of 78,500 bytes with a 1-cycle registered read latency: images at +0x0000..+0x1323F and labels at +0x13240..+0x132A3, loaded via $readmemh from the golden image/label files (relocated copies arch/golden_model/stimulus.hex + labels.hex); writes shall be ignored."
+    priority: must
+    measurable_target: "All 78,500 bytes read back == stimulus.hex + labels.hex; write ignored; rvalid 1 cycle after accept"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-010"
+    verification: {method: simulation, items: [VP-VEC-001]}
+    status: agreed
+  - id: REQ-011
+    title: "AXI2APB bridge: UART +0x0000, GPIO +0x1000, never hang"
+    category: interface
+    description: "The AXI2APB bridge shall map window 0x4000_0000 to APB: UART at +0x0000 (8 B) and GPIO at +0x1000 (4 B); APB offsets outside the two targets shall return PRDATA=0 with PREADY asserted (no hang); bridge responses per REQ-005 timing (read response no later than 3 cycles after accept)."
+    priority: must
+    measurable_target: "Round-trip writes/reads to both targets; unmapped APB offset completes with PRDATA=0"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-011"
+    verification: {method: simulation, items: [VP-APB-001]}
+    status: agreed
+  - id: REQ-012
+    title: "cnn_axi_slave window: register offsets and image buffer"
+    category: interface
+    description: "The cnn_axi_slave shall map window 0x5000_0000 as: CNN_CTRL +0x00, CNN_STATUS +0x04, CNN_RESULT +0x08, CNN_EXP +0x0C, CNN_IMG +0x100..+0x40F (784 bytes)."
+    priority: must
+    measurable_target: "Every offset in the map returns/accepts data at exactly its assigned register"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-012"
+    verification: {method: simulation, items: [VP-CNN-001]}
+    status: agreed
+  - id: REQ-013
+    title: "UART_TX: 1-cycle utx_valid pulse, 115200 8N1, idle-high mark"
+    category: interface
+    description: "A write to UART_TX (+0x00) shall pulse utx_valid for exactly 1 cycle with utx_data=PWDATA[7:0] into the reused uart_tx, CLK_DIV=868 default via top parameter UART_CLK_DIV (115200 8N1 LSB-first); the top-level uart_tx pin shall idle high (mark) between frames and during reset."
+    priority: must
+    measurable_target: "utx_valid high for exactly 1 cycle per write; frame bit widths == CLK_DIV cycles; idle == 1 between frames"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-013"
+    verification: {method: simulation, items: [VP-UART-001, VP-TOP-002]}
+    status: agreed
+  - id: REQ-014
+    title: "UART_STAT: BUSY poll-before-write; drop-on-busy semantics"
+    category: interface
+    description: "UART_STAT (+0x04) read shall return {31'b0, BUSY} with BUSY = !utx_ready; a UART_TX write while BUSY=1 shall be accepted by the bus but the byte shall be dropped; firmware shall poll BUSY before each write."
+    priority: must
+    measurable_target: "BUSY reflects transmitter state; drop-on-busy reproduced; firmware never writes while BUSY (G1)"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-014"
+    verification: {method: simulation, items: [VP-UART-001]}
+    status: agreed
+  - id: REQ-015
+    title: "GPIO_OUT: 12-bit RW register driving led[11:0]"
+    category: interface
+    description: "GPIO_OUT (+0x00, RW, reset 0) shall drive top-level led[11:0]; any write with any wstrb shall update the full 12-bit value from PWDATA[11:0]; reads shall return the register value."
+    priority: must
+    measurable_target: "led[11:0] == GPIO_OUT; reset value 0; readback == written value"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-015"
+    verification: {method: simulation, items: [VP-GPIO-001, VP-TOP-004]}
+    status: agreed
+  - id: REQ-016
+    title: "CNN_CTRL: START write-1 strobe, PARK soft-reset, dominance rules"
+    category: interface
+    description: "CNN_CTRL (+0x00, RW, reset 0): bit[0] START is a write-1 strobe (reads back 0); bit[1] PARK is RW. Writing PARK=1 shall immediately hold the accelerator core in synchronous reset and clear BUSY/DONE (abort); writing START=1 while PARK=1 or BUSY=1 shall be ignored; writing START=1 while PARK=0 and BUSY=0 shall launch exactly one inference (REQ-021)."
+    priority: must
+    measurable_target: "All four corner cases (START clean, START-while-BUSY, START-while-PARK, PARK abort) behave as specified"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-016"
+    verification: {method: simulation, items: [VP-CNN-001, VP-TOP-007]}
+    status: agreed
+  - id: REQ-017
+    title: "CNN_STATUS: BUSY and DONE lifecycle"
+    category: interface
+    description: "CNN_STATUS (+0x04, RO, reset 0): bit[0] BUSY shall be 1 from the cycle a START is accepted until the cycle the result is latched; bit[1] DONE shall be set on result latch and cleared by the next START or by a PARK write; bits [31:2] read 0."
+    priority: must
+    measurable_target: "BUSY/DONE transitions match the single-shot lifecycle over 100 consecutive runs"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-017"
+    verification: {method: simulation, items: [VP-CNN-001, VP-TOP-003, VP-TOP-007]}
+    status: agreed
+  - id: REQ-018
+    title: "CNN_RESULT: pred/conf/verdict latched at done"
+    category: interface
+    description: "CNN_RESULT (+0x08, RO, reset 0) shall present [3:0] pred, [14:8] confidence 0..100 (7-bit encoding, REQ-027), [17:16] verdict 0/1/2; all other bits read 0; the value shall be latched at the inference-done cycle and held until the next START."
+    priority: must
+    measurable_target: "For every image i: CNN_RESULT == regenerated expected.hex words 4i (pred), 4i+1 (conf), 4i+3 (verdict)"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-018 (values from the new FP golden)"
+    verification: {method: simulation, items: [VP-CNN-001, VP-CNN-002, VP-TOP-003]}
+    status: agreed
+  - id: REQ-019
+    title: "CNN_EXP: CPU-provided expected label drives hardware verdict"
+    category: interface
+    description: "CNN_EXP (+0x0C, WO, reads 0) shall hold the expected label for the current image; the accelerator's label input shall be exp_label[3:0] so the hardware verdict equals the golden verdict (regenerated expected.hex word 4i+3) for that image."
+    priority: must
+    measurable_target: "verdict == expected.hex word 4i+3 for all 100 images; CNN_EXP readback == 0"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-019"
+    verification: {method: simulation, items: [VP-CNN-001, VP-CNN-002, VP-TOP-003]}
+    status: agreed
+  - id: REQ-020
+    title: "CNN_IMG: 784x8 CPU-writable buffer, little-endian packing, broadcast to 9 image banks"
+    category: interface
+    description: "CNN_IMG (+0x100..+0x40F, WO, reads 0) shall be a 784x8 CPU-writable image buffer; byte p of the image at offset +0x100+p; a word write to +0x100+4k packs pixels 4k..4k+3 into bytes [7:0],[15:8],[23:16],[31:24] with wstrb lane-enables; the write shall be broadcast to the 9 pre-shifted image banks (bank t = tap t = iy*3+ix, shift arithmetic per fe-arch, out-of-range writes dropped so bank reads are zero-padded); no read/write contention is possible because the CPU writes only while the core is parked (REQ-021)."
+    priority: must
+    measurable_target: "784 bytes written via bus are readable through the array feed with correct per-tap shifts (G2 passes for all 100 images)"
+    source: user_brief
+    rationale: "Harness reuse (register semantics); banking per J5"
+    verification: {method: simulation, items: [VP-CNN-003, VP-CNN-002, VP-IC-002]}
+    status: agreed
+  - id: REQ-021
+    title: "Single-shot: reset-parked core, one inference per START, bounded BUSY"
+    category: functional
+    description: "The single-shot sequencer shall hold the accelerator core in synchronous reset (parked) at SoC reset and re-park it after the result latch; every inference processes exactly one image per START; BUSY shall remain asserted for at most 750,000 cycles per START (compute ~748,653 cycles, fe-arch §6.5, ASM-008)."
+    priority: must
+    measurable_target: "Park at reset and re-park within 2 cycles of done; BUSY window <= 750,000 cycles; second START reproduces an identical CNN_RESULT"
+    source: user_brief
+    rationale: "BRIEF.md (poll bound re-derived from cnn_soc's 667,208); cnn_soc REQ-021"
+    verification: {method: simulation, items: [VP-TOP-007, VP-CNN-002]}
+    status: agreed
+  - id: REQ-022
+    title: "FP arithmetic contract: BF16 operands, FP32 accumulate, RN-even, FTZ"
+    category: functional
+    description: "All multiply-accumulate arithmetic shall use BF16 operands (weights and activations) and FP32 accumulation; every FP32 add/multiply shall round-to-nearest-even; FP32 results and BF16-conversion inputs with magnitude < 2^-126 shall flush to signed zero (FTZ, ASM-003); FP32 overflow to +/-Inf is unreachable by range analysis (fe-arch §5) and shall saturate per IEEE if it ever occurs; BF16->FP32 expansion is exact; FP32->BF16 conversion is RN-even with FTZ; the golden model shall mirror every one of these rules bit-exactly."
+    priority: must
+    measurable_target: "Golden-vs-RTL bit-exact (G2, G7); FP unit directed vectors 0 mismatches"
+    source: user_brief
+    rationale: "BRIEF.md decision 1 (BF16/FP32) + decision 2 (bit-exact golden)"
+    verification: {method: simulation, items: [VP-FP-001, VP-FP-002, VP-FP-003, VP-GOLD-001]}
+    status: agreed
+  - id: REQ-023
+    title: "8x8 systolic array: conv layers only, pinned accumulate order"
+    category: functional
+    description: "The conv layers shall be computed by an 8x8 (64 PE) weight-stationary systolic array; each PE holds a BF16 weight (active + shadow register), receives one BF16 activation per wavefront cycle, multiplies (BF16->FP32 exact), and accumulates in FP32; the per-output-channel accumulate order shall be exactly: bias first, then the products in the pinned sub-pass/column order of arch/systolic_dataflow.md (ASM-006); activations stream left-to-right one column per cycle; partial sums stay in the PE across sub-passes; results drain at the right edge after the last sub-pass; FC1/FC2 shall NOT use the array (serial datapath, REQ-025)."
+    priority: must
+    measurable_target: "Golden mirrors the pinned order bit-exactly (G8); array directed checks (VP-ARR-001..003)"
+    source: user_brief
+    rationale: "BRIEF.md decision 3 (8x8, conv-only) + decision 2 (mirrored accumulate order)"
+    verification: {method: simulation, items: [VP-ARR-001, VP-ARR-002, VP-ARR-003, VP-GOLD-001]}
+    status: agreed
+  - id: REQ-024
+    title: "Tiling: conv1 = 2 passes of 64, conv2 = 18 passes of 64 per output position"
+    category: functional
+    description: "Conv1 (72 MACs/output position: 8 oc x 9 taps) shall be tiled as 2 array passes: pass A columns = taps 0..7, pass B = tap 8. Conv2 (1,152 MACs/output position: 16 oc x 8 ic x 9 taps) shall be tiled as 18 passes: 2 oc-groups x 9 (iy,ix) positions, columns = 8 input channels; pass index p = oc_group*9 + tap_k, oc-group 0 (oc 0..7) before group 1 (oc 8..15). Weights reload (shadow) between passes; activations for a pass come from the 8 pool1 banks (conv2) or the 9 shifted image banks (conv1) with zero-padding at the image border."
+    priority: must
+    measurable_target: "Pass structure matches tiling_plan.md; golden accumulate order matches (G8)"
+    source: user_brief
+    rationale: "BRIEF.md architectural mandates (conv1 72->2x64, conv2 1152->18x64)"
+    verification: {method: simulation, items: [VP-ARR-002, VP-GOLD-001]}
+    status: agreed
+  - id: REQ-025
+    title: "Serial FP FC datapath: FC1 784x32, FC2 32x10, pinned input order"
+    category: functional
+    description: "FC1 (784->32) and FC2 (32->10) shall be computed by a serial single-MAC datapath (BF16 multiply + FP32 accumulate, pipelined 1 MAC/cycle steady state); per output unit the accumulate order shall be exactly: bias first, then inputs in ascending index order (FC1: i=0..783 over the flattened channel-major pool2 map; FC2: i=0..31 over the BF16 FC1 outputs); each FC1 output passes through the piecewise sigmoid (REQ-026) and is stored as BF16; each FC2 output passes through the piecewise sigmoid and then the sigma256 quantization (REQ-027) without intermediate rounding."
+    priority: must
+    measurable_target: "Golden mirrors the FC order bit-exactly (G8); FC directed vectors (VP-FC-001)"
+    source: user_brief
+    rationale: "BRIEF.md decision 3 (serial FC, not on the array)"
+    verification: {method: simulation, items: [VP-FC-001, VP-GOLD-001]}
+    status: agreed
+  - id: REQ-026
+    title: "Piecewise sigmoid: exact dyadic breakpoints/coefficients, mirrored bit-exactly"
+    category: functional
+    description: "The FC activation function shall be the pinned piecewise-linear sigmoid: breakpoints {0, 1/4, 1/2, 1, 3/2, 2, 4, 8} on |z|, dyadic slopes/intercepts (exact FP32 bit patterns in arch/piecewise_sigmoid.md, ASM-005); evaluation sigma = fp32_add(fp32_mul(m, |z|), c) (mul then add, each RN-even/FTZ); z<0: sigma = fp32_sub(1.0, sigma); |z|>=8: sigma = 1.0. The golden model shall mirror the segment selection and evaluation order exactly. No divider, no lookup table."
+    priority: must
+    measurable_target: "Sigmoid directed vectors (all segments + boundaries + negative side) 0 mismatches (G7); golden mirrors evaluation order (G8)"
+    source: user_brief
+    rationale: "BRIEF.md decision 4 (piecewise sigmoid, exact breakpoints/coefficients pinned)"
+    verification: {method: simulation, items: [VP-SIG-001, VP-GOLD-001]}
+    status: agreed
+  - id: REQ-027
+    title: "Confidence encoding: sigma256 = trunc(sigma*256 + 0.5), conf = (best*100)>>8, TRASH < 50"
+    category: functional
+    description: "Each FC2 sigmoid output sigma (FP32 in [0,1]) shall be quantized as sigma256 = trunc(sigma*256 + 0.5) (exact FP32 scaling by 2^8 then round-half-up, integer 0..256); argmax over the 10 sigma256 values with LOWEST index winning ties; confidence = (sigma256_best * 100) >> 8 (integer truncation, 0..100); verdict = 2 (TRASH) iff confidence < 50, else 1 (INCORRECT) iff pred != expected label, else 0 (CORRECT)."
+    priority: must
+    measurable_target: "Golden and RTL produce identical pred/conf/verdict for all 100 images (G2); quantization directed vectors (VP-SIG-002)"
+    source: user_brief
+    rationale: "BRIEF.md (7-bit conf encoding identical to cnn_soc; rounding mode pinned)"
+    verification: {method: simulation, items: [VP-SIG-002, VP-TOP-003, VP-GOLD-001]}
+    status: agreed
+  - id: REQ-028
+    title: "Weights: BF16 export from float masters, RN-even, no retraining"
+    category: functional
+    description: "Weights shall be exported from ../cnn/arch/golden_model/weights_float.npz (float64 masters W1,b1..W4,b4 of the trained network) by arch/golden_model/export_bf16.py: float64 -> float32 (RN-even) -> BF16 (RN-even, FTZ); the layout shall be identical to the old weights.hex (conv1_w[oc*9+t] | b1 | conv2_w[oc*72+ic*9+k] | b2 | fc1_w[i*32+j] | b3 | fc2_w[i*10+j] | b4, 26,698 words); the result weights_bf16.hex is consumed by both the golden model and the RTL weight banks; no retraining, no other quantization."
+    priority: must
+    measurable_target: "export_bf16.py deterministic; 26,698 words; golden consumes the same file (G6)"
+    source: user_brief
+    rationale: "BRIEF.md decision 8 (no retraining; conversion defined in the export script)"
+    verification: {method: simulation, items: [VP-GOLD-001, VP-WROM-001]}
+    status: agreed
+  - id: REQ-029
+    title: "Golden: bit-exact mirrored dataflow; regenerated expected outputs"
+    category: functional
+    description: "arch/golden_model/golden_ref_model.c shall be an integer-only C99 model computing the network with the exact systolic/FC accumulate order (REQ-023/025), the exact FP32 RN-even/FTZ arithmetic (REQ-022), the pinned piecewise sigmoid (REQ-026) and confidence encoding (REQ-027); it shall regenerate the 100-image expected outputs (expected_outputs.txt, expected.hex) used by the harness gates G1/G2; the old Q8.8 expected_outputs.txt does not apply; the model shall be deterministic (fixed-width integer arithmetic only)."
+    priority: must
+    measurable_target: "Golden re-run reproduces committed expected files byte-identically (G6); numpy twin cross-check 100/100 (G8)"
+    source: user_brief
+    rationale: "BRIEF.md decision 2 (bit-exact mirrored dataflow) + decision 9 (regenerated expected outputs)"
+    verification: {method: simulation, items: [VP-GOLD-001, VP-TOP-002, VP-TOP-003]}
+    status: agreed
+  - id: REQ-030
+    title: "UART byte stream is golden-exact (three verdict line formats)"
+    category: interface
+    description: "The firmware's UART output shall be byte-exact to the regenerated FP golden stream: per image exactly one line in one of the three formats (CORRECT / INCORRECT / TRASH, exact strings in spec.md §4.1), image index zero-padded to 3 digits, all other numbers unpadded decimal, terminated by a single 0x0A with no 0x0D, matching arch/golden_model/expected_outputs.txt line-for-line for images 0..99."
+    priority: must
+    measurable_target: "diff(decoded UART, expected_outputs.txt) == 0 mismatches (G1)"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-024"
+    verification: {method: simulation, items: [VP-TOP-002, VP-FW-001]}
+    status: agreed
+  - id: REQ-031
+    title: "Firmware 100-image demo loop with polled CNN driver"
+    category: functional
+    description: "The firmware shall process images 0..99 in order: read the 784-byte image from vec_rom (0x1000_0000 + i*784) and the label from vec_rom (0x1001_3240 + i), write CNN_EXP, copy the image to CNN_IMG, write CNN_CTRL START, poll CNN_STATUS DONE (guard 3,000,000 iterations — BUSY <= 750,000 cycles, ASM-008), read CNN_RESULT, print the UART line, write the LED pattern to GPIO_OUT; after image 99 the firmware shall spin forever."
+    priority: must
+    measurable_target: "100 images processed in order with correct data provenance (G1/G2/G3 evidence)"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-025 (poll bound re-derived)"
+    verification: {method: simulation, items: [VP-TOP-002, VP-TOP-003]}
+    status: agreed
+  - id: REQ-032
+    title: "LED encoding at the presented instant (firmware-side)"
+    category: functional
+    description: "At each result-presented instant the firmware shall drive GPIO_OUT[9:0] = one-hot(pred) (all-zero when verdict==2/TRASH), GPIO_OUT[10] = (verdict != 0) (fail), GPIO_OUT[11] = 0 (busy indicator off); while an inference is in flight GPIO_OUT[11] shall be 1."
+    priority: must
+    measurable_target: "100/100 presented-instant LED checks pass (G3)"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-026"
+    verification: {method: simulation, items: [VP-TOP-004]}
+    status: agreed
+  - id: REQ-033
+    title: "Polling only; no interrupts in v1"
+    category: functional
+    description: "v1 shall use polling only: ENABLE_IRQ=0, irq tied to 32'd0; the firmware shall poll CNN_STATUS[1] (DONE) and UART_STAT[0] (BUSY); no interrupt controller, no vector table, no CSR usage."
+    priority: must
+    measurable_target: "No interrupt-related logic exists (inspection); firmware observes DONE/BUSY by polling (G1/G2)"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-027"
+    verification: {method: inspection, items: [VP-TOP-008]}
+    status: agreed
+  - id: REQ-034
+    title: "Single clock domain, posedge-clk sequential logic"
+    category: clocking
+    description: "cnn_systolic shall have exactly one clock domain (CD_CORE, clk, 100 MHz nominal / 10.000 ns); every sequential element shall be clocked on posedge clk; no clock gating in the shell; the accelerator's gated-clock candidates are documented in fe-arch power_plan.md."
+    priority: must
+    measurable_target: "Inspection: 0 negedge/dual-edge always blocks; 1 clock net"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-028"
+    verification: {method: inspection, items: [VP-TOP-001, VP-TOP-005]}
+    status: agreed
+  - id: REQ-035
+    title: "Fully synchronous active-low rst_n with reset output defaults"
+    category: reset
+    description: "rst_n shall be active-low and fully synchronous (every flop: always @(posedge clk) if (!rst_n) ... else ...; no async/negedge reset terms), fanned out to picorv32 resetn and every slave; during rst_n=0 the outputs shall be led[11:0]==12'h000 and uart_tx==1'b1; minimum assert width 2 cycles (ASM-001)."
+    priority: must
+    measurable_target: "led==0 and uart_tx==1 throughout reset; no X/Z on outputs after release (G4); 0 negedge-rst always blocks"
+    source: user_brief
+    rationale: "Deviation §2.1 (shell verbatim); cnn_soc REQ-029"
+    verification: {method: simulation, items: [VP-TOP-001, VP-TOP-005]}
+    status: agreed
+  - id: REQ-036
+    title: "Data widths and endianness"
+    category: interface
+    description: "Data widths shall be: AXI address/data 32-bit with wstrb[3:0] byte-enables; little-endian byte order throughout (RV32); image pixels 8-bit unsigned; LED 12-bit; CNN result widths per spec.md §6.3; BF16 words 16-bit; FP32 words 32-bit; APB address PADDR[11:0], data 32-bit."
+    priority: must
+    measurable_target: "wstrb lane tests pass; CNN_IMG packing little-endian (pixel 4k in byte [7:0] of word k)"
+    source: user_brief
+    rationale: "Harness reuse; cnn_soc REQ-030"
+    verification: {method: simulation, items: [VP-IC-002, VP-CNN-003]}
+    status: agreed
+  - id: REQ-037
+    title: "Bounded boot and full-run cycle budgets"
+    category: performance
+    description: "The first complete UART line shall be transmitted within 1,500,000 cycles of rst_n release; the full 100-image demo shall complete within 150,000,000 cycles at any UART_CLK_DIV in {4, 868}; per-inference BUSY <= 750,000 cycles (REQ-021); the SoC TB watchdog shall enforce all bounds."
+    priority: must
+    measurable_target: "First line <= 1.5M cycles; full run <= 150M cycles; BUSY <= 750,000 per START; 0 watchdog aborts (G5)"
+    source: user_brief
+    rationale: "Harness reuse (bounds unchanged; per-image bound re-derived, ASM-008)"
+    verification: {method: simulation, items: [VP-TOP-006, VP-TOP-007]}
+    status: agreed
+  - id: REQ-038
+    title: "Pure Verilog-2001, no latches, no DFT, safe defaults"
+    category: compliance
+    description: "All RTL shall be pure Verilog-2001 (IEEE 1364-2001): no SystemVerilog constructs, no inferred latches (every always @* block assigns all LHS on all paths), no DFT structures, no custom analog, no '#' delays outside testbenches; every case statement shall include a safe default arc; no initial blocks in synthesisable RTL except $readmemh ROM initialisation."
+    priority: must
+    measurable_target: "iverilog -g2001 compile-only clean; 0 latch warnings; grep checks pass (fe-rtl §9 gates)"
+    source: standard
+    rationale: "Pipeline contract; cnn_soc REQ-032"
+    verification: {method: inspection, items: [VP-CNN-004, VP-TOP-001]}
+    status: agreed
+  - id: REQ-039
+    title: "Memories: weight banks 26,698x16 BF16; FM RAM; image banks; pool1 banks"
+    category: functional
+    description: "The accelerator memories shall be: BF16 weight ROM 26,698 words (8 interleaved banks of >=3,338 words, 4,096 spec'd, $readmemh from weights_bf16.hex, same layout as REQ-028); image buffer 9 pre-shifted banks x 784 x 8-bit (bank t shift per fe-arch, zero-padded); pool1 output 8 per-channel banks x 196 x 16-bit (256 spec'd); FM RAM 8,192 x 16-bit BF16 holding h1 (6,272), h2 (3,136), p2 (784) and h3 (32) in the pinned region map (fe-arch §7); the bias register file (8+16+32+10 x 16-bit) staged at layer start."
+    priority: must
+    measurable_target: "All memories load/store exactly per the fe-arch region map; weights_bf16.hex loads fully (VP-WROM-001, VP-MEM-001)"
+    source: user_brief
+    rationale: "BRIEF.md (BF16 weight ROM 26,698 words ~427 Kbit; banking/feed design is the architect's call)"
+    verification: {method: simulation, items: [VP-WROM-001, VP-MEM-001]}
+    status: agreed
+  - id: REQ-040
+    title: "Sky130 SRAM macros as black boxes, PDK-verified at fe-rtl"
+    category: compliance
+    description: "All large memories (FM RAM 8,192x16, weight banks 8x4,096x16, image banks 9x1,024x8, pool1 banks 8x256x16, shell SRAM mapping) shall be implemented as Sky130 SRAM macros (OpenRAM-generated sky130_sram_*) instantiated as black boxes with Verilog stubs and SDC constraints, OR as flop arrays where a macro is unavailable (OI-001); the exact cell names and sizes shall be verified against the installed PDK at fe-rtl; no custom analog."
+    priority: must
+    measurable_target: "Stub files + SDC entries exist for every macro; PDK-verification recorded at fe-rtl (OI-001 closed or fallback chosen)"
+    source: user_brief
+    rationale: "fe-spec skill §1 (Sky130 macros as black boxes); J5"
+    verification: {method: inspection, items: [VP-MEM-001]}
+    status: agreed
+  - id: REQ-041
+    title: "No formal / GLS / equivalence in scope"
+    category: compliance
+    description: "fe-sby (formal), fe-gls (gate-level simulation) and RTL<->netlist equivalence shall NOT be run at any stage of this project; verification is functional simulation + functional coverage + fe-opensta STA/SDC + firmware SoC verify only (BRIEF.md decision 5)."
+    priority: must
+    measurable_target: "No sby/gls/equiv artifacts or run records exist in the project"
+    source: user_brief
+    rationale: "BRIEF.md decision 5 (Rinri dropped all three)"
+    verification: {method: inspection, items: [VP-TOP-008]}
+    status: agreed
+
+assumptions:
+  - id: ASM-001
+    statement: "Minimum reset assert width is 2 clk cycles (SoC TB asserts rst_n >= 10 cycles — cnn_soc precedent)."
+    basis: precedent
+    impact: "Sets the TB reset sequence and RST-001 min_assert_cycles; no effect on bit-exactness."
+    requires_confirmation: true
+  - id: ASM-002
+    statement: "Core clock is exactly 100.000 MHz (10.000 ns) — cnn/cnn_soc precedent and the brief's STA target."
+    basis: precedent
+    impact: "Sets all timing budgets (UART CLK_DIV=868, REQ-037 budgets, fe-opensta SDC)."
+    requires_confirmation: true
+  - id: ASM-003
+    statement: "FP32 subnormal flush-to-zero (FTZ) in the FP datapath (fp32 add/mul results and BF16 conversion inputs < 2^-126 -> +/-0); IEEE subnormal values are not produced by this network (range analysis in fe-arch §5); golden mirrors FTZ."
+    basis: architect_decision (J2, autonomy override 2026-08-28)
+    impact: "Defines the FP32 unit rounding behaviour; deviation from full IEEE-754 documented."
+    requires_confirmation: true
+  - id: ASM-004
+    statement: "Confidence quantization: sigma256 = trunc(sigma*256 + 0.5) (round-half-up), conf = (sigma256_best*100)>>8, TRASH iff conf < 50 — the 7-bit confidence encoding stays register-compatible with cnn_soc."
+    basis: architect_decision (J3, autonomy override 2026-08-28)
+    impact: "Defines the argmax/confidence/verdict path; golden mirrors it."
+    requires_confirmation: true
+  - id: ASM-005
+    statement: "Piecewise sigmoid: dyadic breakpoints {0,1/4,1/2,3/4,1,3/2,2,3,4,6,8,12,16,24} and dyadic slopes/intercepts, all exactly representable in FP32; targets the TRAINED rational sigmoid act_float(z)=0.5+0.5z/(1+|z|) (the old Q8.8 LUT's function — NOT the logistic); evaluation sigma = fp32_add(fp32_mul(m,|z|),c); negative z: sigma = 1 - sigma(|z|); |z|>=24: 251/256."
+    basis: architect_decision (J3, autonomy override 2026-08-28)
+    impact: "The sigmoid contract for RTL + golden (arch/piecewise_sigmoid.md)."
+    requires_confirmation: true
+  - id: ASM-006
+    statement: "Accumulate-order pins (the bit-exactness contract): conv1 per-oc bias, taps 0..7, tap 8; conv2 per-oc bias, (iy,ix) k=0..8 outer, ic c=0..7 inner, oc-group 0 before 1; FC serial bias then ascending input index (arch/systolic_dataflow.md)."
+    basis: architect_decision (J4, autonomy override 2026-08-28)
+    impact: "Golden mirrors the RTL's FP32 add order exactly; any change invalidates the bit-exact contract."
+    requires_confirmation: true
+  - id: ASM-007
+    statement: "Memory banking: 8 interleaved weight banks (4,096x16 each), 9 shifted image banks (1,024x8 each), 8 pool1 banks (256x16 each), FM RAM 8,192x16; SRAM macro availability PDK-verified at fe-rtl (OI-001), flop-array fallback documented."
+    basis: architect_decision (J5, autonomy override 2026-08-28)
+    impact: "Memory sizes, bank counts, and the weight-reload bandwidth of the array."
+    requires_confirmation: true
+  - id: ASM-008
+    statement: "Per-image compute ~748,653 cycles; BUSY <= 750,000 cycles per START; firmware poll guard remains 3,000,000 iterations (~12M cycles, 16x margin)."
+    basis: architect_decision (J6, autonomy override 2026-08-28; cycle derivation fe-arch §6.5)
+    impact: "REQ-021/037 budgets and the firmware poll constant's comment."
+    requires_confirmation: true
+  - id: ASM-009
+    statement: "BF16 export: float64 -> float32 (RN-even) -> BF16 (RN-even, FTZ), defined in export_bf16.py; golden consumes weights_bf16.hex (the identical converted values)."
+    basis: user_brief (decision 8) + J1
+    impact: "The weight ROM contents and golden weight loading."
+    requires_confirmation: true
+
+ip_reuse:
+  - id: IPR-001
+    block: "picorv32_axi (with picorv32 core + picorv32_axi_adapter)"
+    decision: reuse
+    repo: "local: cnn_soc/ip/picorv32.v (vendored from skill-tests/ex6/rtl/picorv32.v)"
+    commit: null
+    license: ISC
+    status: verified
+    search_command: null
+    notes: "Local copy read this session (IP_PROVENANCE.md); ISC per file header (Copyright 2015 Claire Xenia Wolf). Instantiated verbatim (cnn_soc REQ-002 parameter list). No external repo/URL claimed."
+  - id: IPR-002
+    block: "SoC shell: axi_lite_interconnect, bootrom, sram, vec_rom, axi2apb, apb_uart, apb_gpio"
+    decision: reuse
+    repo: "local: cnn_soc/rtl/*.v (project-internal)"
+    commit: null
+    license: project-internal
+    status: verified
+    search_command: null
+    notes: "All seven files read this session (headers); byte-for-byte reuse, zero edits (BRIEF.md mandate). No external repo/URL claimed."
+  - id: IPR-003
+    block: "uart_tx (APB UART shell)"
+    decision: reuse
+    repo: "local: cnn_soc/ip/uart_tx.v (from cnn/rtl/uart_tx.v)"
+    commit: null
+    license: project-internal
+    status: verified
+    search_command: null
+    notes: "Byte-for-byte reuse with CLK_DIV parameter (default 868); cnn_soc IP_PROVENANCE.md read this session."
+  - id: IPR-004
+    block: "Frozen golden data: MNIST test set (t10k_images.bin, t10k_labels.bin) + float weight masters (weights_float.npz)"
+    decision: reuse
+    repo: "local: ../cnn/arch/golden_model/ + ../cnn/data/ (project-internal, READ-ONLY)"
+    commit: null
+    license: project-internal
+    status: verified
+    search_command: null
+    notes: "Frozen pre-existing package (cnn golden_package_commit e7569dbd); weights_float.npz structure read this session from train_cnn.py (keys W1,b1..W4,b4, float64). Never modified."
+  - id: IPR-005
+    block: "Sky130 SRAM macros (OpenRAM sky130_sram_*)"
+    decision: blackbox
+    repo: "Sky130 open PDK + OpenRAM (local install)"
+    commit: null
+    license: "Apache-2.0 (OpenRAM) / PDK"
+    status: unverified_candidate
+    search_command: null
+    notes: "Exact cell names and sizes must be verified against the installed PDK at fe-rtl (OI-001); fallback = flop arrays (area cost in fe-arch §15)."
+
+open_issues:
+  - id: OI-001
+    description: "Sky130 SRAM macro availability/sizes for the accelerator memories (FM 8,192x16; weight 8x4,096x16; img 9x1,024x8; p1 8x256x16) and the shell SRAM mapping — cell names/sizes must be verified against the installed PDK at fe-rtl; flop-array fallback documented."
+    blocks: [REQ-039, REQ-040]
+    owner: fe-rtl
+  - id: OI-002
+    description: "BF16 network accuracy vs the Q8.8 baseline (96.35%): measured at the P1 golden run; regenerated expected outputs are the contract regardless (BRIEF decision 9)."
+    blocks: [REQ-028, REQ-029]
+    owner: fe-arch (P1)
+  - id: OI-003
+    description: "128 KB shell sram.v is a behavioral RAM reused verbatim; Sky130 physical mapping (macro vs flops) is an fe-yosys decision; area risk documented (J8)."
+    blocks: [REQ-009]
+    owner: fe-yosys

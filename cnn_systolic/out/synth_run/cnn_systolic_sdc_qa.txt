@@ -1,0 +1,12 @@
+VERDICT: PASS
+reasons: none
+port_coverage: clk
+rst_n
+uart_tx
+led
+unconstrained_ports: none
+paths_found: yes
+setup_violations: 0
+hold_violations:  0
+sdc: out/synth_run/cnn_systolic.sdc
+log: out/synth_run/qa.log

@@ -1,0 +1,15 @@
+Cell Area Report - cnn_systolic
+-----------------------------------------------
+Instance Cell Area
+u_apb_gpio apb_gpio (no liberty area)
+u_apb_uart $paramod\\apb_uart\\UART_CLK_DIV=s32'00000000000000000000001101100100 (no liberty area)
+u_axi2apb axi2apb (no liberty area)
+u_axi_lite_interconnect axi_lite_interconnect (no liberty area)
+u_bootrom bootrom (no liberty area)
+u_cnn_axi_slave cnn_axi_slave (no liberty area)
+u_cnn_core $paramod$5bfa30e084100e28c6ded38e100eb57097d79c9f\\cnn_core (no liberty area)
+u_picorv32 $paramod$388e23a8c4c932833b8c5a703a1388246fc12872\\picorv32_axi (no liberty area)
+u_sram sram (no liberty area)
+u_vec_rom vec_rom (no liberty area)
+-----------------------------------------------
+TOTAL_CELL_AREA 0.0
